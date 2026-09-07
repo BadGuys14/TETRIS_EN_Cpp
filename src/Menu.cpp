@@ -14,11 +14,15 @@ Menu::Menu(float larg, float haut, const sf::Font& police)
 
 void Menu::init(float larg, float haut, const sf::Font& police) {
     m_police = &police;
+    m_larg   = larg;
+    m_haut   = haut;
     m_lettreTitre.clear();
     m_btnsAccueil.clear();
+    m_btnsPause.clear();
 
     initEcranTitre(larg, haut);
     initAccueil(larg, haut);
+    initPause(larg, haut);
     majStyle();
 }
 
@@ -231,6 +235,176 @@ void Menu::majStyle() {
         }
     }
 }
+
+// ---------------------------------------------------------------
+//  Menu Pause : init
+// ---------------------------------------------------------------
+void Menu::initPause(float larg, float haut) {
+    if (!m_police) return;
+
+    // Fond semi-transparent couvrant toute la fenetre
+    m_overlayPause.setSize({larg, haut});
+    m_overlayPause.setPosition({0.f, 0.f});
+    m_overlayPause.setFillColor(sf::Color(0, 0, 0, 160));
+
+    // Titre "PAUSE"
+    m_titrePause.emplace(*m_police);
+    m_titrePause->setString("PAUSE");
+    m_titrePause->setCharacterSize(36);
+    m_titrePause->setFillColor(Palette::Anemo);
+    m_titrePause->setStyle(sf::Text::Bold);
+
+    sf::FloatRect bTitre = m_titrePause->getLocalBounds();
+    m_titrePause->setOrigin({bTitre.position.x + bTitre.size.x / 2.f,
+                             bTitre.position.y + bTitre.size.y / 2.f});
+
+    const float btnLarg    = 300.f;
+    const float btnHaut    = 50.f;
+    const float espacement = 14.f;
+
+    vector<string> libelles = {"REPRENDRE", "RECOMMENCER", "OPTIONS", "QUITTER"};
+    const int      nbBoutons = static_cast<int>(libelles.size());
+
+    float blocHaut  = nbBoutons * btnHaut + (nbBoutons - 1) * espacement;
+    float titreHaut = 36.f + 20.f;
+    float totalHaut = titreHaut + blocHaut;
+    float offsetY   = (haut - totalHaut) / 2.f;
+
+    m_titrePause->setPosition({larg / 2.f, offsetY + 18.f});
+    float premierBtnY = offsetY + titreHaut;
+
+    for (size_t i = 0; i < libelles.size(); ++i) {
+        BoutonUI btn(*m_police);
+
+        float x = larg / 2.f - btnLarg / 2.f;
+        float y = premierBtnY + (i * (btnHaut + espacement));
+
+        btn.fond.setSize({btnLarg, btnHaut});
+        btn.fond.setPosition({x, y});
+
+        btn.bordure.setSize({btnLarg, btnHaut});
+        btn.bordure.setPosition({x, y});
+        btn.bordure.setFillColor(sf::Color::Transparent);
+        btn.bordure.setOutlineThickness(4.f);
+
+        btn.texte.setFont(*m_police);
+        btn.texte.setString(libelles[i]);
+        btn.texte.setCharacterSize(14);
+        btn.texte.setStyle(sf::Text::Bold);
+
+        sf::FloatRect bounds = btn.texte.getLocalBounds();
+        btn.texte.setOrigin({bounds.position.x + bounds.size.x / 2.f,
+                              bounds.position.y + bounds.size.y / 2.f});
+        btn.texte.setPosition({x + btnLarg / 2.f, y + btnHaut / 2.f});
+
+        m_btnsPause.push_back(btn);
+    }
+
+    majStylePause();
+}
+
+void Menu::majStylePause() {
+    for (size_t i = 0; i < m_btnsPause.size(); ++i) {
+        if (static_cast<int>(i) == m_indexPause) {
+            m_btnsPause[i].fond.setFillColor(Palette::Anemo);
+            m_btnsPause[i].bordure.setOutlineColor(Palette::BordureOr);
+            m_btnsPause[i].texte.setFillColor(Palette::TexteBoutonActif);
+        }
+        else {
+            m_btnsPause[i].fond.setFillColor(Palette::FondBoutonInactif);
+            m_btnsPause[i].bordure.setOutlineColor(sf::Color(150, 135, 90));
+            m_btnsPause[i].texte.setFillColor(Palette::TexteBoutonInactif);
+        }
+    }
+}
+
+void Menu::validerOptionPause() {
+    switch (m_indexPause) {
+        case 0: /* REPRENDRE */    m_reprise       = true; break;
+        case 1: /* RECOMMENCER */  m_recommencer   = true; break;
+        case 2: /* OPTIONS */      /* TODO */        break;
+        case 3: /* QUITTER */      m_quitterVersMenu = true; break;
+        default: break;
+    }
+}
+
+void Menu::ouvrirPause() {
+    m_indexPause = 0;
+    majStylePause();
+}
+
+void Menu::fermerPause() {
+    // Rien a faire pour l'instant (l'etat est gere par Jeu)
+}
+
+void Menu::gererTouchePause(sf::Keyboard::Key touche) {
+    int maxOptions = static_cast<int>(m_btnsPause.size());
+
+    if (touche == sf::Keyboard::Key::Up) {
+        m_indexPause = (m_indexPause - 1 + maxOptions) % maxOptions;
+        majStylePause();
+    }
+    else if (touche == sf::Keyboard::Key::Down) {
+        m_indexPause = (m_indexPause + 1) % maxOptions;
+        majStylePause();
+    }
+    else if (touche == sf::Keyboard::Key::Enter) {
+        validerOptionPause();
+    }
+}
+
+void Menu::gererSourisPause(sf::Vector2i pos) {
+    sf::Vector2f p(static_cast<float>(pos.x), static_cast<float>(pos.y));
+
+    for (size_t i = 0; i < m_btnsPause.size(); ++i) {
+        if (m_btnsPause[i].fond.getGlobalBounds().contains(p)) {
+            m_indexPause = static_cast<int>(i);
+            majStylePause();
+            break;
+        }
+    }
+}
+
+void Menu::gererClicPause(sf::Vector2i pos) {
+    sf::Vector2f p(static_cast<float>(pos.x), static_cast<float>(pos.y));
+
+    for (size_t i = 0; i < m_btnsPause.size(); ++i) {
+        if (m_btnsPause[i].fond.getGlobalBounds().contains(p)) {
+            m_indexPause = static_cast<int>(i);
+            validerOptionPause();
+            break;
+        }
+    }
+}
+
+void Menu::gererMolettePause(float delta) {
+    int maxOptions = static_cast<int>(m_btnsPause.size());
+
+    if (delta > 0.f)
+        m_indexPause = (m_indexPause - 1 + maxOptions) % maxOptions;
+    else if (delta < 0.f)
+        m_indexPause = (m_indexPause + 1) % maxOptions;
+
+    majStylePause();
+}
+
+void Menu::afficherPause(sf::RenderWindow& fenetre) {
+    // Fond semi-transparent par-dessus la grille
+    fenetre.draw(m_overlayPause);
+
+    // Titre "PAUSE"
+    if (m_titrePause.has_value())
+        fenetre.draw(*m_titrePause);
+
+    // Boutons
+    for (const auto& btn : m_btnsPause) {
+        fenetre.draw(btn.fond);
+        fenetre.draw(btn.bordure);
+        fenetre.draw(btn.texte);
+    }
+}
+
+// ---------------------------------------------------------------
 
 void Menu::afficher(sf::RenderWindow& fenetre) {
     if (m_etat == MenuState::EcranTitre) {

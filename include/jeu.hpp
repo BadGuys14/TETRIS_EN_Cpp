@@ -10,6 +10,13 @@
 // ---------------------------------------------------------------
 //  Classe Jeu : boucle principale, fenetre, evenements
 // ---------------------------------------------------------------
+// Etats possibles de la boucle de jeu
+enum class EtatJeu {
+    Menu,   // Menus principaux (titre + accueil)
+    EnJeu,  // Partie en cours
+    Pause   // Menu pause
+};
+
 class Jeu {
     private:
         static const int LARGEUR_FENETRE  = 800; // largeur  (axe X)
@@ -21,7 +28,7 @@ class Jeu {
         sf::Font         m_police;
         Menu             m_menu;
         Grille           m_grille;
-        bool             m_enJeu { false };
+        EtatJeu          m_etat  { EtatJeu::Menu };
 
         void gesEvenements();
         void miseAJour();

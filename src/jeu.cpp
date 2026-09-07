@@ -13,7 +13,7 @@ Jeu::Jeu()
     m_police(),
     m_menu(),
     m_grille(),
-    m_enJeu(false)
+    m_etat(EtatJeu::Menu)
 {
     // 1. Charger la police en premier
     if (!m_police.openFromFile("assets/fonts/PressStart2P-Regular.ttf")) {
@@ -40,7 +40,17 @@ void Jeu::gesEvenements() {
             m_fenetre.close();
         }
 
-        if (!m_enJeu) {
+        // Touche Echap : bascule entre EnJeu et Pause
+        if (const auto* e = event->getIf<sf::Event::KeyPressed>()) {
+            if (e->code == sf::Keyboard::Key::Escape) {
+                if (m_etat == EtatJeu::EnJeu)
+                    m_etat = EtatJeu::Pause;
+                else if (m_etat == EtatJeu::Pause)
+                    m_etat = EtatJeu::EnJeu;
+            }
+        }
+
+        if (m_etat == EtatJeu::Menu) {
             if (const auto* e = event->getIf<sf::Event::KeyPressed>())
                 m_menu.gererTouche(e->code);
 
@@ -54,14 +64,45 @@ void Jeu::gesEvenements() {
             if (const auto* e = event->getIf<sf::Event::MouseWheelScrolled>())
                 m_menu.gererMolette(e->delta);
         }
+        else if (m_etat == EtatJeu::Pause) {
+            if (const auto* e = event->getIf<sf::Event::KeyPressed>())
+                m_menu.gererTouchePause(e->code);
+
+            if (const auto* e = event->getIf<sf::Event::MouseMoved>())
+                m_menu.gererSourisPause({e->position.x, e->position.y});
+
+            if (const auto* e = event->getIf<sf::Event::MouseButtonPressed>())
+                if (e->button == sf::Mouse::Button::Left)
+                    m_menu.gererClicPause({e->position.x, e->position.y});
+
+            if (const auto* e = event->getIf<sf::Event::MouseWheelScrolled>())
+                m_menu.gererMolettePause(e->delta);
+        }
     }
 }
 
 void Jeu::miseAJour() {
-    if (!m_enJeu) {
+    if (m_etat == EtatJeu::Menu) {
         if (m_menu.demandeLancementJeu()) {
-            m_enJeu = true;
+            m_etat = EtatJeu::EnJeu;
             m_menu.resetLancementJeu();
+        }
+    }
+    else if (m_etat == EtatJeu::Pause) {
+        // Actions demandées depuis le menu pause
+        if (m_menu.demandeReprise()) {
+            m_etat = EtatJeu::EnJeu;
+            m_menu.resetReprise();
+        }
+        else if (m_menu.demandeRecommencer()) {
+            m_grille = Grille();           // Réinitialise la partie
+            m_etat   = EtatJeu::EnJeu;
+            m_menu.resetRecommencer();
+        }
+        else if (m_menu.demandeQuitter()) {
+            m_etat = EtatJeu::Menu;
+            m_grille = Grille();           // Réinitialise la partie
+            m_menu.resetQuitter();
         }
     }
 }
@@ -69,10 +110,15 @@ void Jeu::miseAJour() {
 void Jeu::affichage() {
     m_fenetre.clear(COULEUR_FENETRE);
 
-    if (!m_enJeu) {
+    if (m_etat == EtatJeu::Menu) {
         m_menu.afficher(m_fenetre);
-    } else {
+    }
+    else if (m_etat == EtatJeu::EnJeu) {
         m_grille.dessiner(m_fenetre);
+    }
+    else if (m_etat == EtatJeu::Pause) {
+        m_grille.dessiner(m_fenetre);      // Grille en arrière-plan
+        m_menu.afficherPause(m_fenetre);   // Overlay pause par-dessus
     }
 
     m_fenetre.display();
