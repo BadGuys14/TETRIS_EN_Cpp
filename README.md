@@ -8,12 +8,21 @@ Projet de Tetris en C++ utilisant la bibliotheque SFML 3.
 
 ```
 TETRIS_EN_Cpp/
-├── main.cpp          Point d entree du programme
-├── jeu.hpp / jeu.cpp Classe Jeu : boucle principale, fenetre, evenements
-├── grille.hpp/.cpp   Classe Grille : plateau 10x20, dessin des cases
-├── Menu.h / Menu.cpp Classe Menu  : ecrans titre + accueil (5 boutons)
-├── Palette.h         Constantes de couleurs (theme Genshin Impact)
-└── README.md         Ce fichier
+├── src/
+│   ├── main.cpp          Point d entree du programme
+│   ├── jeu.cpp           Boucle principale, fenetre, evenements
+│   ├── grille.cpp        Plateau 10x20, dessin des cases
+│   ├── Menu.cpp          Menus : titre, accueil, pause
+│   └── Piece.cpp         (en cours)
+├── include/
+│   ├── jeu.hpp           Classe Jeu + enum EtatJeu (Menu / EnJeu / Pause)
+│   ├── grille.hpp        Classe Grille
+│   ├── Menu.h            Classe Menu + enum MenuState
+│   ├── Palette.h         Constantes de couleurs (theme Genshin Impact)
+│   └── Piece.hpp         (en cours)
+├── assets/
+│   └── fonts/            Polices TTF utilisees
+└── README.md             Ce fichier
 ```
 
 ---
@@ -370,3 +379,201 @@ static inline sf::Color COULEUR_FENETRE = sf::Color::White;
 // APRES (style arcade sombre, identique a Palette::FondSombre)
 static inline sf::Color COULEUR_FENETRE = sf::Color(30, 32, 40);
 ```
+
+---
+
+## Modifications du 07/09/2026 (soir) — EtatJeu a 3 valeurs + Menu Pause
+
+### Contexte
+
+Jusqu a present, `Jeu` utilisait un simple `bool m_enJeu` pour distinguer
+"afficher le menu" de "afficher la grille". Ce booleen devient insuffisant
+des que l on introduit un troisieme etat : la pause. Il a ete remplace par
+un `enum class` a 3 valeurs.
+
+---
+
+### jeu.hpp — bool m_enJeu → enum class EtatJeu
+
+```cpp
+// AVANT
+bool m_enJeu { false };
+
+// APRES
+enum class EtatJeu {
+    Menu,   // Menus principaux (titre + accueil)
+    EnJeu,  // Partie en cours
+    Pause   // Menu pause
+};
+
+// Dans la classe Jeu :
+EtatJeu m_etat { EtatJeu::Menu };
+```
+
+**Pourquoi un enum class plutot qu un entier ?**
+- Lisibilite : `m_etat == EtatJeu::Pause` est explicite
+- Securite : pas de confusion avec un int arbitraire
+- Extensibilite : ajouter `GameOver`, `Cinematique`, etc. sans changer le type
+
+---
+
+### Menu.h — Ajout de MenuState::Pause + membres du menu pause
+
+**MenuState etendu :**
+```cpp
+// AVANT
+enum class MenuState { EcranTitre, Accueil };
+
+// APRES
+enum class MenuState { EcranTitre, Accueil, Pause };
+```
+
+**Nouvelles methodes publiques :**
+
+| Methode | Role |
+|---------|------|
+| `gererTouchePause(key)` | Fleches Haut/Bas + Entree dans le menu pause |
+| `gererSourisPause(pos)` | Hover : met en surbrillance le bouton survole |
+| `gererClicPause(pos)` | Clic gauche : selectionne et valide |
+| `gererMolettePause(delta)` | Molette : defilement dans la liste |
+| `afficherPause(fenetre)` | Rendu de l overlay pause par-dessus la grille |
+| `ouvrirPause()` | Reinitialise l index et le style du menu pause |
+| `fermerPause()` | (reserve — l etat est gere par Jeu) |
+
+**Flags de resultat (pattern signal simple) :**
+```cpp
+bool demandeReprise()     const;   // REPRENDRE clique
+bool demandeRecommencer() const;   // RECOMMENCER clique
+bool demandeQuitter()     const;   // QUITTER clique
+void resetReprise();
+void resetRecommencer();
+void resetQuitter();
+```
+Ce pattern evite tout couplage direct Menu → Jeu : `Jeu` interroge les flags
+a chaque `miseAJour()` puis les reinitialise apres traitement.
+
+**Nouveaux membres prives :**
+
+| Membre | Type | Role |
+|--------|------|------|
+| `m_btnsPause` | `vector<BoutonUI>` | 4 boutons du menu pause |
+| `m_titrePause` | `optional<sf::Text>` | Titre "PAUSE" en turquoise Anemo |
+| `m_overlayPause` | `sf::RectangleShape` | Fond noir semi-transparent |
+| `m_indexPause` | `int` | Index du bouton selectionne dans le menu pause |
+| `m_reprise` | `bool` | Flag : reprendre demande |
+| `m_recommencer` | `bool` | Flag : recommencer demande |
+| `m_quitterVersMenu` | `bool` | Flag : retour au menu principal demande |
+| `m_larg`, `m_haut` | `float` | Dimensions stockees pour `initPause()` |
+
+---
+
+### Menu.cpp — Nouvelles methodes implementees
+
+#### initPause()
+
+Construit les 4 boutons du menu pause centres verticalement :
+
+```
+Boutons du menu pause :
+  REPRENDRE    → m_reprise       = true
+  RECOMMENCER  → m_recommencer   = true
+  OPTIONS      → (TODO)
+  QUITTER      → m_quitterVersMenu = true
+```
+
+Style du titre : couleur `Palette::Anemo` (turquoise), taille 36, Bold.
+Fond overlay : `sf::Color(0, 0, 0, 160)` — noir a 63 % d opacite.
+
+#### majStylePause()
+
+Identique a `majStyle()` mais pour `m_btnsPause` :
+
+| Etat | Fond | Contour | Texte |
+|------|------|---------|-------|
+| Selectionne | `Palette::Anemo` | `BordureOr` | `TexteBoutonActif` |
+| Inactif | `FondBoutonInactif` | dore attenue | `TexteBoutonInactif` |
+
+#### afficherPause()
+
+Ordre de dessin (important pour le z-order SFML) :
+1. `m_overlayPause` — fond semi-transparent couvrant toute la fenetre
+2. `m_titrePause`   — titre "PAUSE"
+3. `m_btnsPause`    — fond + bordure + texte de chaque bouton
+
+---
+
+### jeu.cpp — Adaptation a EtatJeu
+
+#### gesEvenements()
+
+La touche **Echap** fait basculer entre `EnJeu` et `Pause` :
+```cpp
+if (e->code == sf::Keyboard::Key::Escape) {
+    if (m_etat == EtatJeu::EnJeu)  m_etat = EtatJeu::Pause;
+    else if (m_etat == EtatJeu::Pause) m_etat = EtatJeu::EnJeu;
+}
+```
+
+Le routing des evenements suit ensuite l etat courant :
+- `EtatJeu::Menu`  → evenements transmis a `m_menu` (methodes normales)
+- `EtatJeu::EnJeu` → evenements reserves au gameplay (a implementer)
+- `EtatJeu::Pause` → evenements transmis a `m_menu` (methodes `*Pause`)
+
+#### miseAJour()
+
+```cpp
+if (m_etat == EtatJeu::Pause) {
+    if (m_menu.demandeReprise())     { m_etat = EtatJeu::EnJeu; m_menu.resetReprise(); }
+    if (m_menu.demandeRecommencer()) { m_grille = Grille(); m_etat = EtatJeu::EnJeu; m_menu.resetRecommencer(); }
+    if (m_menu.demandeQuitter())     { m_etat = EtatJeu::Menu; m_grille = Grille(); m_menu.resetQuitter(); }
+}
+```
+
+`m_grille = Grille()` reinitialise la grille en utilisant l operateur
+d affectation par defaut (la grille est copiable/assignable).
+
+#### affichage()
+
+```cpp
+if      (m_etat == EtatJeu::Menu)  m_menu.afficher(m_fenetre);
+else if (m_etat == EtatJeu::EnJeu) m_grille.dessiner(m_fenetre);
+else if (m_etat == EtatJeu::Pause) {
+    m_grille.dessiner(m_fenetre);    // arriere-plan
+    m_menu.afficherPause(m_fenetre); // overlay par-dessus
+}
+```
+
+---
+
+### Resume des etats et transitions
+
+```
+         [Menu]
+           |
+      PLAY clique
+           |
+           v
+        [EnJeu] <-------- REPRENDRE (menu pause)
+           |                  ^
+         Echap                |
+           |                  |
+           v                  |
+        [Pause] --------------+
+           |
+        RECOMMENCER → reinitialise grille → [EnJeu]
+           |
+        QUITTER     → reinitialise grille → [Menu]
+```
+
+---
+
+## A implementer (prochaines etapes)
+
+| Fonctionnalite | Fichiers concernes |
+|----------------|--------------------|
+| Logique de jeu (chute des pieces, rotation, lignes) | `Piece.cpp`, `grille.cpp` |
+| Ecran OPTIONS (volume, difficulte...) | `Menu.h`, `Menu.cpp` |
+| Ecran GAME OVER | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
+| Ecran CREDITS | `Menu.h`, `Menu.cpp` |
+| Gestion du redimensionnement de fenetre | `jeu.cpp` (sf::Event::Resized) |
+| Score et niveau | `jeu.hpp`, `jeu.cpp`, `grille.hpp` |
