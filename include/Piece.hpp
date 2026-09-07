@@ -4,9 +4,9 @@
 #include <array> //explication 
 #include "Palette.h"
 
-//Les 7 formes classique 
-enum classique FormePiece{
-    I, O, T, L, S, Z
+// Les 7 formes Tetris classiques
+enum class FormePiece {
+    I, O, T, L, J, S, Z
 };
 
 //coordonnees relative (colonne, ligne) des 4 blocs de la piece
@@ -40,4 +40,4 @@ class Piece {
     sf::Color getCouleur() const {return m_couleur;}//Explication
     int getLigne () const {return m_ligne;}//Explication
     int getColonne () const {return m_colonne;} //Explication
-}
+};

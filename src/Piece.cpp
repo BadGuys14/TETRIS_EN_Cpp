@@ -42,7 +42,7 @@ Piece::Piece(FormePiece forme, int colonneDepart, int ligneDepart)
             case FormePiece::Z:
                 return{sf::Vector2i{0,0},sf::Vector2i{1,0}, sf::Vector2i{1,1}, sf::Vector2i{2,1}};
       }
-      return 0;
+      return {sf::Vector2i{0,1}, sf::Vector2i{1,1}, sf::Vector2i{2,1}, sf::Vector2i{3,1}}; // securite
     }
 
     void Piece::deplacer(int dl, int dc){
@@ -55,7 +55,7 @@ Piece::Piece(FormePiece forme, int colonneDepart, int ligneDepart)
         std::array<sf::Vector2i, 4> positions; 
 
         for (int i = 0; i < 4; i++){
-            positions[i] = sf::Vector2i(m_colonne + coords[i].x, m_ligne + coords[i.y]);//Expliquation
+            positions[i] = sf::Vector2i(m_colonne + coords[i].x, m_ligne + coords[i].y); // position absolue dans la grille
         }
         return positions;
     }
