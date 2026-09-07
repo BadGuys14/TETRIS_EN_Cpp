@@ -10,16 +10,16 @@ Projet de Tetris en C++ utilisant la bibliotheque SFML 3.
 TETRIS_EN_Cpp/
 ├── src/
 │   ├── main.cpp          Point d entree du programme
-│   ├── jeu.cpp           Boucle principale, fenetre, evenements
-│   ├── grille.cpp        Plateau 10x20, dessin des cases
+│   ├── jeu.cpp           Boucle principale, fenetre, evenements et chute
+│   ├── grille.cpp        Plateau 10x20, collisions, fixer et suppression de lignes
 │   ├── Menu.cpp          Menus : titre, accueil, pause
-│   └── Piece.cpp         (en cours)
+│   └── Piece.cpp         Formes I,O,T,L,J,S,Z, couleurs, positions absolues
 ├── include/
-│   ├── jeu.hpp           Classe Jeu + enum EtatJeu (Menu / EnJeu / Pause)
-│   ├── grille.hpp        Classe Grille
+│   ├── jeu.hpp           Classe Jeu + enum EtatJeu + gestion 7-bag
+│   ├── grille.hpp        Classe Grille + tableau m_couleurs + collisions
 │   ├── Menu.h            Classe Menu + enum MenuState
 │   ├── Palette.h         Constantes de couleurs (theme Genshin Impact)
-│   └── Piece.hpp         (en cours)
+│   └── Piece.hpp         Classe Piece + enum FormePiece
 ├── assets/
 │   └── fonts/            Polices TTF utilisees
 └── README.md             Ce fichier
@@ -567,13 +567,72 @@ else if (m_etat == EtatJeu::Pause) {
 
 ---
 
+---
+
+## Modifications du 07/09/2026 (nuit) — Generation 7-bag, Chute automatique et Collisions
+
+### Contexte
+
+Mise en place de la generation des tetraminos via le systeme officiel Tetris **7-bag**, de la chute automatique rythmee par une horloge SFML, des collisions avec la grille/murs/sol, ainsi que du verrouillage et du nettoyage des lignes pleines.
+
+---
+
+### Grille (grille.hpp / grille.cpp)
+
+**Nouveaux membres et methodes :**
+
+- `sf::Color m_couleurs[LIGNES][COLONNES]` : Stocke la couleur de chaque case posee de la grille. Reinitialise a `Transparent` dans `reinitialiser()`.
+- `bool caseLibre(int ligne, int colonne) const` : Renvoie `true` si la case est dans les limites de la grille (0 a 19 en lignes, 0 a 9 en colonnes) ET est actuellement vide (`m_grille[l][c] == 0`).
+- `bool positionValide(const std::array<sf::Vector2i,4>& positions) const` : Verifie que les 4 blocs d une piece sont tous sur des cases libres.
+- `void fixerPiece(const Piece& piece)` : Inscrit la valeur 1 dans `m_grille` et copie la couleur de la piece dans `m_couleurs` pour chaque bloc pose.
+- `int supprimerLignesCompletes()` : Parcourt la grille du bas vers le haut, supprime les lignes entierement remplies, fait descendre toutes les lignes superieures et renvoie le nombre de lignes supprimees.
+- **Getters** : `getLignes()`, `getColonnes()`, `getTailleCase()`.
+
+---
+
+### Piece (Piece.hpp / Piece.cpp)
+
+- Representation des 7 formes classiques (`I, O, T, L, J, S, Z`).
+- Association de chaque forme a sa couleur elementaire Genshin Impact (definie dans `Palette.h`).
+- Calcul des positions absolues des 4 blocs dans la grille (`positionAbs()`).
+- Methode `deplacer(dl, dc)` pour ajuster la position de l origine (ligne, colonne).
+
+---
+
+### Jeu (jeu.hpp / jeu.cpp)
+
+**Algorithme 7-bag (`remplirSac` et `piocherForme`) :**
+- Conteneur `std::vector<FormePiece> m_sac` contenant une fois chaque forme.
+- Melange aleatoire equitable avec `std::shuffle` et le moteur PRNG `std::mt19937`.
+- Le sac se re-remplit et se re-melange automatiquement des qu il est vide.
+
+**Chute automatique et Controles :**
+- `sf::Clock m_horlogeChute` : Fait descendre la piece courante d un cran toutes les **0,5 secondes**.
+- Touches `Fleche Gauche` / `Fleche Droite` : Deplacement lateral avec verification via `positionValide`.
+- Touche `Fleche Bas` : Descente rapide manuelle. Si la descente est impossible, la piece est instantanement verrouillee.
+
+**Verrouillage et Chaine de transition (`verrouillerPiece`) :**
+1. La piece est figee dans la grille via `fixerPiece()`.
+2. Les lignes pleines sont nettoyees via `supprimerLignesCompletes()`.
+3. `m_pieceCourante` recoit la valeur de `m_pieceSuivante`, et une nouvelle piece est piochee dans le sac pour `m_pieceSuivante`.
+4. Si la nouvelle piece ne peut pas apparaitre (grille pleine en haut), le jeu bascule au menu principal (`EtatJeu::Menu`) et la grille est reinitialisee.
+
+---
+
+### Code::Blocks (tetris.cbp)
+
+Mise a jour du fichier de projet `.cbp` pour integrer les unites `include/Piece.hpp` et `src/Piece.cpp` dans la cible de compilation GCC.
+
+---
+
 ## A implementer (prochaines etapes)
 
 | Fonctionnalite | Fichiers concernes |
 |----------------|--------------------|
-| Logique de jeu (chute des pieces, rotation, lignes) | `Piece.cpp`, `grille.cpp` |
+| Rotation des pieces (etape suivante) | `Piece.cpp`, `grille.cpp`, `jeu.cpp` |
+| Affichage de la piece suivante (panneau lateral) | `jeu.cpp`, `Piece.cpp` |
 | Ecran OPTIONS (volume, difficulte...) | `Menu.h`, `Menu.cpp` |
-| Ecran GAME OVER | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
+| Ecran GAME OVER complet avec score | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
 | Ecran CREDITS | `Menu.h`, `Menu.cpp` |
 | Gestion du redimensionnement de fenetre | `jeu.cpp` (sf::Event::Resized) |
-| Score et niveau | `jeu.hpp`, `jeu.cpp`, `grille.hpp` |
+| Score, niveau et lignes supprimees | `jeu.hpp`, `jeu.cpp`, `grille.hpp` |

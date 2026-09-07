@@ -57,9 +57,11 @@
 		</Linker>
 		<Unit filename="include/Menu.h" />
 		<Unit filename="include/Palette.h" />
+		<Unit filename="include/Piece.hpp" />
 		<Unit filename="include/grille.hpp" />
 		<Unit filename="include/jeu.hpp" />
 		<Unit filename="src/Menu.cpp" />
+		<Unit filename="src/Piece.cpp" />
 		<Unit filename="src/grille.cpp" />
 		<Unit filename="src/jeu.cpp" />
 		<Unit filename="src/main.cpp" />
