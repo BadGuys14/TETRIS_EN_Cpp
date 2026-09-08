@@ -625,14 +625,63 @@ Mise a jour du fichier de projet `.cbp` pour integrer les unites `include/Piece.
 
 ---
 
+## Modifications du 08/09/2026 — Rotation, Ghost Piece, Score/Combos & Panneau Lateral UI
+
+### Contexte
+
+Implementation complete des fonctionnalites d extension selon le plan valide : rotation des pieces a 360°, ombre de projection au sol (Ghost Piece), chute instantanee (Hard Drop), comptage des scores et combos avec sauvegarde du meilleur score, et interface laterale complete.
+
+---
+
+### Rotation & Wall Kicks (`Piece.hpp` / `Piece.cpp`)
+
+- **Gestion de l orientation** : Membre `m_orientation` (0, 1, 2, 3) pour chaque piece.
+- **Coordonnees selon orientation** : `calculerCoords()` gere les 4 positions de chaque forme (I, O, T, L, J, S, Z).
+- **Wall Kicks & Floor Kicks (`Jeu::tournerPieceCourante`)** : Si la rotation se fait contre un mur ou le sol, le jeu teste automatiquement un decalage de -1, +1, -2, +2 colonnes ou +1 ligne avant d annuler.
+
+---
+
+### Ghost Piece / Ombre d atterrissage (`calculerGhostPiece` / `dessinerFantome`)
+
+- Projection en temps reel de la piece courante vers le bas jusqu au premier obstacle.
+- Affichage semi-transparent (opacite alpha = 50) avec bordure assortie pour anticiper l atterrissage.
+
+---
+
+### Hard Drop (`hardDropPiece`)
+
+- Pression sur la touche `Espace` pour plaquer instantanement la piece au sol avec attribution de points bonus de chute (+2 pts / case).
+
+---
+
+### Score, Combos & Sauvegarde (`verrouillerPiece` / `chargerMeilleurScore`)
+
+- **Attribution des points** :
+  - 1 ligne (Single) : 100 pts
+  - 2 lignes (Double) : 300 pts
+  - 3 lignes (Triple) : 500 pts
+  - 4 lignes (Tetris) : 800 pts
+- **Multiplicateur de Combo** : Accumulation de bonus `(combo - 1) * 50` lors des nettoyages de lignes consecutifs.
+- **Persistence du Meilleur Score** : Sauvegarde automatique dans `assets/bestscore.txt`.
+
+---
+
+### Panneau Lateral & UI (`Jeu::dessinerPanneauLateral`)
+
+- **Interface stylisee a droite (x: 280 a 800 px)** :
+  - **BEST SCORE** : En vert Anemo/Dendro avec enregistrement.
+  - **CURRENT SCORE** : Score dynamique de la partie en cours.
+  - **COMBO COUNTER** : Indicateur dore en cas de combo actif.
+  - **NEXT PIECE** : Encadré blanc de previsualisation centree pour la piece suivante.
+  - **CONTROLS** : Guide des commandes (`< > Move`, `^ / Z Rotate`, `v Soft Drop`, `Spc Hard Drop`, `Esc Pause`).
+
+---
+
 ## A implementer (prochaines etapes)
 
 | Fonctionnalite | Fichiers concernes |
 |----------------|--------------------|
-| Rotation des pieces (etape suivante) | `Piece.cpp`, `grille.cpp`, `jeu.cpp` |
-| Affichage de la piece suivante (panneau lateral) | `jeu.cpp`, `Piece.cpp` |
 | Ecran OPTIONS (volume, difficulte...) | `Menu.h`, `Menu.cpp` |
-| Ecran GAME OVER complet avec score | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
+| Ecran GAME OVER complet avec ecran de fin | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
 | Ecran CREDITS | `Menu.h`, `Menu.cpp` |
-| Gestion du redimensionnement de fenetre | `jeu.cpp` (sf::Event::Resized) |
-| Score, niveau et lignes supprimees | `jeu.hpp`, `jeu.cpp`, `grille.hpp` |
+| Gestion du redimensionnement dynamique de fenetre | `jeu.cpp` (sf::Event::Resized) |

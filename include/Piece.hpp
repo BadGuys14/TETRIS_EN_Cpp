@@ -1,7 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include <array> //explication 
+#include <array>
 #include "Palette.h"
 
 // Les 7 formes Tetris classiques
@@ -9,35 +9,50 @@ enum class FormePiece {
     I, O, T, L, J, S, Z
 };
 
-//coordonnees relative (colonne, ligne) des 4 blocs de la piece
-using FormeCoords = std::array<sf::Vector2i, 4>; //explication
+// Coordonnées relatives (colonne, ligne) des 4 blocs de la pièce
+using FormeCoords = std::array<sf::Vector2i, 4>;
 
 class Piece {
-    FormePiece m_forme; //forme de la piece
-    sf::Color m_couleur; // couleur elementaire associé à une forme
-    int m_ligne; // ligne de l'origine de la piece dans la grille
-    int m_colonne; // colonne de l'origine de la piece dans la grille
+private:
+    FormePiece m_forme;       // Forme de la pièce
+    sf::Color  m_couleur;     // Couleur élémentaire associée à la forme
+    int        m_ligne;       // Ligne de l'origine de la pièce dans la grille
+    int        m_colonne;     // Colonne de l'origine de la pièce dans la grille
+    int        m_orientation; // Orientation (0 = 0°, 1 = 90°, 2 = 180°, 3 = 270°)
 
-    //Renvoie les 4 coordonnees relatives associées a la forme
+    // Renvoie les 4 coordonnées relatives associées à la forme et à son orientation
     FormeCoords calculerCoords() const;
 
     static sf::Color CouleurselonForme(FormePiece forme);
 
-    public:
-    //constuction d'une piece de la forme donnee, positionnee en haut
-    explicit Piece (FormePiece forme, int colonneDepart = 3, int ligneDepart = 0);
+public:
+    // Construction d'une pièce de la forme donnée, positionnée en haut
+    explicit Piece(FormePiece forme, int colonneDepart = 3, int ligneDepart = 0);
 
-    //Deplace la piece de (dl et dc) ligne/colonnes
+    // Déplace la pièce de (dl) lignes et (dc) colonnes
     void deplacer(int dl, int dc);
 
-    //renvoie les positions absolues (colonne, ligne) des 4 blocs
+    // Effectue une rotation dans le sens horaire
+    void tournerHoraire();
+
+    // Effectue une rotation dans le sens anti-horaire
+    void tournerAntiHoraire();
+
+    // Renvoie les positions absolues (colonne, ligne) des 4 blocs
     std::array<sf::Vector2i, 4> positionAbs() const;
 
-    //Dessine la piece dans la fenetre(tailleCase c'est la dtaille d'une case de la grille)
+    // Dessine la pièce réelle dans la fenêtre de jeu
     void dessiner(sf::RenderWindow& fenetre, int tailleCase) const;
 
-    FormePiece getForme() const {return m_forme;}//Explication
-    sf::Color getCouleur() const {return m_couleur;}//Explication
-    int getLigne () const {return m_ligne;}//Explication
-    int getColonne () const {return m_colonne;} //Explication
+    // Dessine la pièce fantôme (ombre semi-transparente au sol)
+    void dessinerFantome(sf::RenderWindow& fenetre, int tailleCase) const;
+
+    // Dessine la pièce centrée dans un encadré d'aperçu (ex. zone NEXT PIECE)
+    void dessinerAPosition(sf::RenderWindow& fenetre, float xOrigin, float yOrigin, int tailleCase) const;
+
+    FormePiece getForme()       const { return m_forme; }
+    sf::Color  getCouleur()     const { return m_couleur; }
+    int        getLigne()       const { return m_ligne; }
+    int        getColonne()     const { return m_colonne; }
+    int        getOrientation() const { return m_orientation; }
 };

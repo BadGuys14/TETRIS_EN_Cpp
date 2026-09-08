@@ -13,7 +13,6 @@
 // ---------------------------------------------------------------
 //  Classe Jeu : boucle principale, fenetre, evenements et logique
 // ---------------------------------------------------------------
-// Etats possibles de la boucle de jeu
 enum class EtatJeu {
     Menu,   // Menus principaux (titre + accueil)
     EnJeu,  // Partie en cours
@@ -22,8 +21,8 @@ enum class EtatJeu {
 
 class Jeu {
     private:
-        static const int LARGEUR_FENETRE  = 800; // largeur  (axe X)
-        static const int LONGUEUR_FENETRE = 600; // longueur (axe Y)
+        static const int LARGEUR_FENETRE  = 800; // Largeur fenêtre (axe X)
+        static const int LONGUEUR_FENETRE = 600; // Hauteur fenêtre (axe Y)
 
         static inline sf::Color COULEUR_FENETRE = sf::Color(30, 32, 40);
 
@@ -34,36 +33,40 @@ class Jeu {
         EtatJeu                 m_etat{ EtatJeu::Menu };
 
         // --- Gestion des pieces et tirage 7-bag ---
-        std::vector<FormePiece> m_sac;           // Sac de 7 formes pour garantir un tirage equitable
-        std::mt19937            m_generator;     // Generateur aleatoire (Mersenne Twister)
-        std::optional<Piece>    m_pieceCourante; // Piece actuellement controlees et en chute
-        Piece                   m_pieceSuivante; // Prochaine piece qui entrera en jeu
+        std::vector<FormePiece> m_sac;           // Sac de 7 formes pour garantir un tirage équitable
+        std::mt19937            m_generator;     // Générateur aléatoire (Mersenne Twister)
+        std::optional<Piece>    m_pieceCourante; // Pièce actuellement contrôlée
+        Piece                   m_pieceSuivante; // Prochaine pièce qui entrera en jeu
 
         // --- Horloge de chute automatique ---
         sf::Clock               m_horlogeChute;  // Horloge mesurant l'intervalle de descente
         float                   m_delaiChute{ 0.5f }; // Temps en secondes entre deux chutes (0.5s)
 
-        // --- Methodes privees de la boucle de jeu ---
+        // --- Scores, Combos et Statistiques ---
+        int                     m_score{ 0 };
+        int                     m_meilleurScore{ 0 };
+        int                     m_combo{ 0 };
+        int                     m_lignesTotales{ 0 };
+
+        // --- Méthodes privées de la boucle de jeu ---
         void gesEvenements();
         void miseAJour();
         void affichage();
 
-        // --- Methodes privees de gestion des pieces ---
-
-        // Remplit m_sac avec les 7 formes Tetris et les melange
+        // --- Méthodes privées de gestion des pièces ---
         void remplirSac();
-
-        // Extrait une forme du sac (le remplit s'il est vide)
         FormePiece piocherForme();
-
-        // Reinitialise le jeu et genere la piece courante et la piece suivante
         void demarrerNouvellePartie();
-
-        // Tente de deplacer la piece courante de (dl) lignes et (dc) colonnes si valide
         bool essayerDeplacerPiece(int dl, int dc);
-
-        // Verrouille la piece courante dans la grille, nettoie les lignes et passe a la suivante
+        void tournerPieceCourante();
+        void hardDropPiece();
         void verrouillerPiece();
+        Piece calculerGhostPiece() const;
+
+        // --- Sauvegarde & Rendu de l'Interface ---
+        void chargerMeilleurScore();
+        void sauvegarderMeilleurScore();
+        void dessinerPanneauLateral();
 
     public:
         Jeu();

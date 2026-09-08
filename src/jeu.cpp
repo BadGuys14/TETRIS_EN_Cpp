@@ -1,5 +1,6 @@
 #include "jeu.hpp"
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 
 Jeu::Jeu()
@@ -27,6 +28,9 @@ Jeu::Jeu()
 
     // 2. Initialiser le Menu APRES le chargement de la police
     m_menu.init(static_cast<float>(LARGEUR_FENETRE), static_cast<float>(LONGUEUR_FENETRE), m_police);
+
+    // 3. Charger le meilleur score sauvegardé
+    chargerMeilleurScore();
 }
 
 void Jeu::executer() {
@@ -38,11 +42,29 @@ void Jeu::executer() {
 }
 
 // ---------------------------------------------------------------
+//  Sauvegarde et Chargement du Meilleur Score
+// ---------------------------------------------------------------
+void Jeu::chargerMeilleurScore() {
+    std::ifstream fichier("assets/bestscore.txt");
+    if (fichier.is_open()) {
+        fichier >> m_meilleurScore;
+        fichier.close();
+    } else {
+        m_meilleurScore = 0;
+    }
+}
+
+void Jeu::sauvegarderMeilleurScore() {
+    std::ofstream fichier("assets/bestscore.txt");
+    if (fichier.is_open()) {
+        fichier << m_meilleurScore;
+        fichier.close();
+    }
+}
+
+// ---------------------------------------------------------------
 //  Gestion des tirages aléatoires (Technique du 7-Bag)
 // ---------------------------------------------------------------
-
-// Remplissage du sac avec exactement une fois chacune des 7 formes Tetris (I, O, T, L, J, S, Z).
-// Les formes sont ensuite mélangées de manière aléatoire grâce à std::shuffle et std::mt19937.
 void Jeu::remplirSac() {
     m_sac = {
         FormePiece::I, FormePiece::O, FormePiece::T,
@@ -51,8 +73,6 @@ void Jeu::remplirSac() {
     std::shuffle(m_sac.begin(), m_sac.end(), m_generator);
 }
 
-// Extrait et renvoie la forme au sommet du sac.
-// Si le sac est vide, il est automatiquement re-rempli et re-mélangé avant d'extraire la forme.
 FormePiece Jeu::piocherForme() {
     if (m_sac.empty()) {
         remplirSac();
@@ -65,21 +85,19 @@ FormePiece Jeu::piocherForme() {
 // ---------------------------------------------------------------
 //  Initialisation d'une nouvelle partie
 // ---------------------------------------------------------------
-
-// Prépare le plateau de jeu et la réserve de pièces pour un nouveau départ :
-// réinitialise la grille, vide le sac, génère la pièce courante ainsi que la pièce suivante,
-// puis réinitialise l'horloge de chute. Si la pièce de départ est déjà bloquée (game over instantané),
-// le jeu retourne au menu principal.
 void Jeu::demarrerNouvellePartie() {
     m_grille.reinitialiser();
     m_sac.clear();
     remplirSac();
 
+    m_score = 0;
+    m_combo = 0;
+    m_lignesTotales = 0;
+
     m_pieceCourante = Piece(piocherForme());
     m_pieceSuivante = Piece(piocherForme());
     m_horlogeChute.restart();
 
-    // Vérification de sécurité lors de la première apparition
     if (!m_grille.positionValide(m_pieceCourante->positionAbs())) {
         m_etat = EtatJeu::Menu;
         m_pieceCourante.reset();
@@ -87,12 +105,8 @@ void Jeu::demarrerNouvellePartie() {
 }
 
 // ---------------------------------------------------------------
-//  Déplacements et Collisions de la pièce courante
+//  Déplacements, Rotation et Hard Drop
 // ---------------------------------------------------------------
-
-// Tente de déplacer la pièce courante d'un décalage relatif (dl lignes, dc colonnes).
-// Effectue une copie temporaire pour tester si la nouvelle position est valide dans la grille.
-// Renvoie true si le déplacement est validé et appliqué, false sinon.
 bool Jeu::essayerDeplacerPiece(int dl, int dc) {
     if (!m_pieceCourante.has_value()) return false;
 
@@ -106,43 +120,140 @@ bool Jeu::essayerDeplacerPiece(int dl, int dc) {
     return false;
 }
 
-// ---------------------------------------------------------------
-//  Verrouillage de la pièce et passage à la suivante
-// ---------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// EXPLICATION POUR LE PROFESSEUR :
+// Tente de faire pivoter la pièce courante.
+// Si la rotation directe frappe un obstacle ou un mur, on effectue des "wall kicks"
+// (tests de décalage de -1, +1, -2, +2 cases) pour ajuster la position sans bloquer le joueur.
+// -----------------------------------------------------------------------------
+void Jeu::tournerPieceCourante() {
+    if (!m_pieceCourante.has_value()) return;
 
-// Appelée lorsqu'une pièce ne peut plus descendre.
-// Fixe la pièce courante dans les tableaux de la grille, détruit les éventuelles lignes pleines,
-// promeut la pièce suivante au statut de pièce courante, puis pioche une nouvelle pièce suivante.
-// Si la nouvelle pièce ne peut pas être placée (grille pleine en haut), réinitialise le jeu et revient au menu.
+    Piece testPiece = *m_pieceCourante;
+    testPiece.tournerHoraire();
+
+    // 1. Test direct
+    if (m_grille.positionValide(testPiece.positionAbs())) {
+        *m_pieceCourante = testPiece;
+        return;
+    }
+
+    // 2. Wall kick gauche (-1 col)
+    Piece testLeft = testPiece;
+    testLeft.deplacer(0, -1);
+    if (m_grille.positionValide(testLeft.positionAbs())) {
+        *m_pieceCourante = testLeft;
+        return;
+    }
+
+    // 3. Wall kick droite (+1 col)
+    Piece testRight = testPiece;
+    testRight.deplacer(0, 1);
+    if (m_grille.positionValide(testRight.positionAbs())) {
+        *m_pieceCourante = testRight;
+        return;
+    }
+
+    // 4. Wall kick gauche étendu (-2 col pour la pièce I)
+    Piece testLeft2 = testPiece;
+    testLeft2.deplacer(0, -2);
+    if (m_grille.positionValide(testLeft2.positionAbs())) {
+        *m_pieceCourante = testLeft2;
+        return;
+    }
+
+    // 5. Wall kick droite étendu (+2 col pour la pièce I)
+    Piece testRight2 = testPiece;
+    testRight2.deplacer(0, 2);
+    if (m_grille.positionValide(testRight2.positionAbs())) {
+        *m_pieceCourante = testRight2;
+        return;
+    }
+
+    // 6. Floor kick (+1 ligne vers le haut si près du sol)
+    Piece testUp = testPiece;
+    testUp.deplacer(-1, 0);
+    if (m_grille.positionValide(testUp.positionAbs())) {
+        *m_pieceCourante = testUp;
+        return;
+    }
+}
+
+// Projection vers le bas pour calculer la Ghost Piece (ombre de la pièce)
+Piece Jeu::calculerGhostPiece() const {
+    Piece ghost = *m_pieceCourante;
+    while (m_grille.positionValide(ghost.positionAbs())) {
+        ghost.deplacer(1, 0);
+    }
+    ghost.deplacer(-1, 0); // Remonte à la dernière position valide
+    return ghost;
+}
+
+// Chute instantanée (Hard Drop avec la touche Espace)
+void Jeu::hardDropPiece() {
+    if (!m_pieceCourante.has_value()) return;
+
+    int bonusChute = 0;
+    while (essayerDeplacerPiece(1, 0)) {
+        bonusChute += 2; // +2 points par ligne franchie en Hard Drop
+    }
+    m_score += bonusChute;
+    if (m_score > m_meilleurScore) {
+        m_meilleurScore = m_score;
+        sauvegarderMeilleurScore();
+    }
+    verrouillerPiece();
+}
+
+// ---------------------------------------------------------------
+//  Verrouillage et Calcul du Score / Combos
+// ---------------------------------------------------------------
 void Jeu::verrouillerPiece() {
     if (!m_pieceCourante.has_value()) return;
 
-    // 1. Inscrire les 4 blocs dans la grille avec leur couleur respectives
+    // 1. Inscrire les 4 blocs dans la grille
     m_grille.fixerPiece(*m_pieceCourante);
 
-    // 2. Vérifier et supprimer les lignes pleines
-    m_grille.supprimerLignesCompletes();
+    // 2. Supprimer les lignes pleines et calculer les points
+    int nbLignes = m_grille.supprimerLignesCompletes();
+    if (nbLignes > 0) {
+        m_combo++;
+        int pointsDeBase = 0;
+        if (nbLignes == 1) pointsDeBase = 100;
+        else if (nbLignes == 2) pointsDeBase = 300;
+        else if (nbLignes == 3) pointsDeBase = 500;
+        else if (nbLignes >= 4) pointsDeBase = 800; // Tetris !
 
-    // 3. Passer la pièce suivante en pièce courante et piocher la nouvelle pièce suivante
+        int bonusCombo = (m_combo > 1) ? (m_combo - 1) * 50 : 0;
+        m_score += pointsDeBase + bonusCombo;
+        m_lignesTotales += nbLignes;
+
+        if (m_score > m_meilleurScore) {
+            m_meilleurScore = m_score;
+            sauvegarderMeilleurScore();
+        }
+    } else {
+        m_combo = 0; // Combo rompu si aucune ligne n'est effacée
+    }
+
+    // 3. Passer à la pièce suivante
     m_pieceCourante = m_pieceSuivante;
     m_pieceSuivante = Piece(piocherForme());
 
-    // 4. Test d'apparition de la nouvelle pièce courante
+    // 4. Test d'apparition
     if (!m_grille.positionValide(m_pieceCourante->positionAbs())) {
-        // La grille est saturée en haut : fin de partie, retour au menu
+        sauvegarderMeilleurScore();
         m_etat = EtatJeu::Menu;
         m_grille.reinitialiser();
         m_pieceCourante.reset();
     }
 
-    // Réinitialisation du timer de chute pour la nouvelle pièce
     m_horlogeChute.restart();
 }
 
 // ---------------------------------------------------------------
-//  Gestion des Événements Entrées (Clavier / Souris)
+//  Gestion des Événements
 // ---------------------------------------------------------------
-
 void Jeu::gesEvenements() {
     while (const std::optional event = m_fenetre.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
@@ -156,7 +267,7 @@ void Jeu::gesEvenements() {
                     m_etat = EtatJeu::Pause;
                 } else if (m_etat == EtatJeu::Pause) {
                     m_etat = EtatJeu::EnJeu;
-                    m_horlogeChute.restart(); // Évite une chute subite à la sortie de pause
+                    m_horlogeChute.restart();
                 }
             }
         }
@@ -176,21 +287,25 @@ void Jeu::gesEvenements() {
                 m_menu.gererMolette(e->delta);
         }
         else if (m_etat == EtatJeu::EnJeu) {
-            // Controles de déplacement de la pièce en cours de jeu
             if (const auto* e = event->getIf<sf::Event::KeyPressed>()) {
                 if (e->code == sf::Keyboard::Key::Left) {
-                    essayerDeplacerPiece(0, -1); // Déplacement gauche
+                    essayerDeplacerPiece(0, -1);
                 }
                 else if (e->code == sf::Keyboard::Key::Right) {
-                    essayerDeplacerPiece(0, 1); // Déplacement droite
+                    essayerDeplacerPiece(0, 1);
+                }
+                else if (e->code == sf::Keyboard::Key::Up || e->code == sf::Keyboard::Key::Z) {
+                    tournerPieceCourante(); // Rotation de la pièce
                 }
                 else if (e->code == sf::Keyboard::Key::Down) {
-                    // Descente rapide manuelle : si impossible de descendre, la pièce est verrouillée
                     if (!essayerDeplacerPiece(1, 0)) {
                         verrouillerPiece();
                     } else {
-                        m_horlogeChute.restart(); // Réinitialise l'horloge de chute auto
+                        m_horlogeChute.restart();
                     }
+                }
+                else if (e->code == sf::Keyboard::Key::Space) {
+                    hardDropPiece(); // Chute instantanée
                 }
             }
         }
@@ -212,9 +327,8 @@ void Jeu::gesEvenements() {
 }
 
 // ---------------------------------------------------------------
-//  Mise à Jour (Logique du Jeu et Chute Automatique)
+//  Mise à Jour (Logique du Jeu)
 // ---------------------------------------------------------------
-
 void Jeu::miseAJour() {
     if (m_etat == EtatJeu::Menu) {
         if (m_menu.demandeLancementJeu()) {
@@ -224,11 +338,9 @@ void Jeu::miseAJour() {
         }
     }
     else if (m_etat == EtatJeu::EnJeu) {
-        // Chute automatique de la pièce courante toutes les 0.5s
         if (m_pieceCourante.has_value()) {
             if (m_horlogeChute.getElapsedTime().asSeconds() >= m_delaiChute) {
                 m_horlogeChute.restart();
-                // Si la pièce ne peut plus descendre, on la fixe et on passe à la suivante
                 if (!essayerDeplacerPiece(1, 0)) {
                     verrouillerPiece();
                 }
@@ -236,7 +348,6 @@ void Jeu::miseAJour() {
         }
     }
     else if (m_etat == EtatJeu::Pause) {
-        // Actions demandées depuis le menu pause
         if (m_menu.demandeReprise()) {
             m_etat = EtatJeu::EnJeu;
             m_menu.resetReprise();
@@ -256,10 +367,145 @@ void Jeu::miseAJour() {
     }
 }
 
+// -----------------------------------------------------------------------------
+// EXPLICATION POUR LE PROFESSEUR :
+// Dessine le panneau latéral droit (x: 280 à 800).
+// Ce panneau affiche :
+// 1. BEST SCORE (Meilleur score en vert Anemo/Dendro)
+// 2. CURRENT SCORE (Score actuel de la partie)
+// 3. COMBO COUNTER (Multiplicateur si lignes d'affilée)
+// 4. NEXT PIECE (Encadré avec la pièce suivante centrée)
+// 5. CONTROLS (Rappel des commandes)
+// -----------------------------------------------------------------------------
+void Jeu::dessinerPanneauLateral() {
+    // Fond du panneau latéral (gris très clair moderne)
+    sf::RectangleShape fondSidebar(sf::Vector2f({520.f, 600.f}));
+    fondSidebar.setPosition({280.f, 0.f});
+    fondSidebar.setFillColor(sf::Color(245, 246, 250));
+    m_fenetre.draw(fondSidebar);
+
+    // Ligne séparatrice verticale
+    sf::RectangleShape ligneSeparation(sf::Vector2f({2.f, 600.f}));
+    ligneSeparation.setPosition({280.f, 0.f});
+    ligneSeparation.setFillColor(sf::Color(210, 215, 225));
+    m_fenetre.draw(ligneSeparation);
+
+    sf::Text txt(m_police);
+
+    // --- 1. BEST SCORE ---
+    txt.setString("BEST SCORE");
+    txt.setCharacterSize(14);
+    txt.setFillColor(sf::Color(120, 130, 145));
+    sf::FloatRect b1 = txt.getLocalBounds();
+    txt.setOrigin({b1.position.x + b1.size.x / 2.f, b1.position.y + b1.size.y / 2.f});
+    txt.setPosition({540.f, 35.f});
+    m_fenetre.draw(txt);
+
+    txt.setString(std::to_string(m_meilleurScore));
+    txt.setCharacterSize(22);
+    txt.setFillColor(Palette::Dendro); // Couleur verte moderne
+    sf::FloatRect b2 = txt.getLocalBounds();
+    txt.setOrigin({b2.position.x + b2.size.x / 2.f, b2.position.y + b2.size.y / 2.f});
+    txt.setPosition({540.f, 65.f});
+    m_fenetre.draw(txt);
+
+    // Séparateur horizontal discret
+    sf::RectangleShape div1(sf::Vector2f({240.f, 1.f}));
+    div1.setPosition({420.f, 95.f});
+    div1.setFillColor(sf::Color(220, 225, 235));
+    m_fenetre.draw(div1);
+
+    // --- 2. CURRENT SCORE ---
+    txt.setString("CURRENT SCORE");
+    txt.setCharacterSize(14);
+    txt.setFillColor(sf::Color(120, 130, 145));
+    sf::FloatRect b3 = txt.getLocalBounds();
+    txt.setOrigin({b3.position.x + b3.size.x / 2.f, b3.position.y + b3.size.y / 2.f});
+    txt.setPosition({540.f, 120.f});
+    m_fenetre.draw(txt);
+
+    txt.setString(std::to_string(m_score));
+    txt.setCharacterSize(24);
+    txt.setFillColor(sf::Color(40, 45, 55));
+    sf::FloatRect b4 = txt.getLocalBounds();
+    txt.setOrigin({b4.position.x + b4.size.x / 2.f, b4.position.y + b4.size.y / 2.f});
+    txt.setPosition({540.f, 150.f});
+    m_fenetre.draw(txt);
+
+    // Affichage du COMBO si > 1
+    if (m_combo > 1) {
+        txt.setString("COMBO x" + std::to_string(m_combo) + "!");
+        txt.setCharacterSize(14);
+        txt.setFillColor(Palette::Geo); // Or
+        sf::FloatRect bc = txt.getLocalBounds();
+        txt.setOrigin({bc.position.x + bc.size.x / 2.f, bc.position.y + bc.size.y / 2.f});
+        txt.setPosition({540.f, 180.f});
+        m_fenetre.draw(txt);
+    }
+
+    // --- 3. NEXT PIECE ---
+    txt.setString("NEXT PIECE");
+    txt.setCharacterSize(14);
+    txt.setFillColor(sf::Color(120, 130, 145));
+    sf::FloatRect b5 = txt.getLocalBounds();
+    txt.setOrigin({b5.position.x + b5.size.x / 2.f, b5.position.y + b5.size.y / 2.f});
+    txt.setPosition({540.f, 215.f});
+    m_fenetre.draw(txt);
+
+    // Cadre blanc d'aperçu de la pièce suivante
+    sf::RectangleShape boxNext(sf::Vector2f({160.f, 130.f}));
+    boxNext.setPosition({460.f, 235.f});
+    boxNext.setFillColor(sf::Color::White);
+    boxNext.setOutlineThickness(2.f);
+    boxNext.setOutlineColor(sf::Color(220, 224, 232));
+    m_fenetre.draw(boxNext);
+
+    // Dessin de la pièce suivante au centre du cadre
+    // Une case fait 24px dans l'aperçu pour bien s'intégrer
+    float previewX = 490.f;
+    float previewY = 275.f;
+    if (m_pieceSuivante.getForme() == FormePiece::I) {
+        previewX = 468.f;
+        previewY = 275.f;
+    } else if (m_pieceSuivante.getForme() == FormePiece::O) {
+        previewX = 502.f;
+        previewY = 270.f;
+    }
+    m_pieceSuivante.dessinerAPosition(m_fenetre, previewX, previewY, 24);
+
+    // --- 4. CONTROLS ---
+    txt.setString("CONTROLS");
+    txt.setCharacterSize(14);
+    txt.setFillColor(sf::Color(120, 130, 145));
+    sf::FloatRect b6 = txt.getLocalBounds();
+    txt.setOrigin({b6.position.x + b6.size.x / 2.f, b6.position.y + b6.size.y / 2.f});
+    txt.setPosition({540.f, 405.f});
+    m_fenetre.draw(txt);
+
+    const std::vector<std::string> commandes = {
+        "< >  Move",
+        "^ / Z Rotate",
+        "v    Soft Drop",
+        "Spc  Hard Drop",
+        "Esc  Pause"
+    };
+
+    float ctrlY = 430.f;
+    for (const auto& cmd : commandes) {
+        txt.setString(cmd);
+        txt.setCharacterSize(11);
+        txt.setFillColor(sf::Color(130, 140, 155));
+        sf::FloatRect bc = txt.getLocalBounds();
+        txt.setOrigin({bc.position.x + bc.size.x / 2.f, bc.position.y + bc.size.y / 2.f});
+        txt.setPosition({540.f, ctrlY});
+        m_fenetre.draw(txt);
+        ctrlY += 20.f;
+    }
+}
+
 // ---------------------------------------------------------------
 //  Rendu Graphique
 // ---------------------------------------------------------------
-
 void Jeu::affichage() {
     m_fenetre.clear(COULEUR_FENETRE);
 
@@ -268,16 +514,30 @@ void Jeu::affichage() {
     }
     else if (m_etat == EtatJeu::EnJeu) {
         m_grille.dessiner(m_fenetre);
+
         if (m_pieceCourante.has_value()) {
+            // 1. Dessiner la pièce fantôme (ombre projetée au sol)
+            Piece ghost = calculerGhostPiece();
+            ghost.dessinerFantome(m_fenetre, m_grille.getTailleCase());
+
+            // 2. Dessiner la pièce courante en chute
             m_pieceCourante->dessiner(m_fenetre, m_grille.getTailleCase());
         }
+
+        // 3. Dessiner le panneau latéral (scores, aperçu, contrôles)
+        dessinerPanneauLateral();
     }
     else if (m_etat == EtatJeu::Pause) {
-        m_grille.dessiner(m_fenetre);      // Grille en arrière-plan
+        m_grille.dessiner(m_fenetre);
+
         if (m_pieceCourante.has_value()) {
+            Piece ghost = calculerGhostPiece();
+            ghost.dessinerFantome(m_fenetre, m_grille.getTailleCase());
             m_pieceCourante->dessiner(m_fenetre, m_grille.getTailleCase());
         }
-        m_menu.afficherPause(m_fenetre);   // Overlay pause par-dessus
+
+        dessinerPanneauLateral();
+        m_menu.afficherPause(m_fenetre); // Overlay pause par-dessus
     }
 
     m_fenetre.display();
