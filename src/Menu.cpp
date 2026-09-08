@@ -19,24 +19,26 @@ void Menu::init(float larg, float haut, const sf::Font& police) {
     m_lettreTitre.clear();
     m_btnsAccueil.clear();
     m_btnsPause.clear();
+    m_btnsGameOver.clear();
 
     initEcranTitre(larg, haut);
     initAccueil(larg, haut);
     initPause(larg, haut);
+    initGameOver(larg, haut);
     majStyle();
 }
 
 void Menu::initEcranTitre(float larg, float haut) {
     if (!m_police) return;
 
-    // Couleurs saturees officielles des Archons Genshin Impact (image 4)
+    // Couleurs saturées officielles des Archons Genshin Impact
     vector<sf::Color> couleurs = {
-        Palette::Pyro,    // T - Rouge/Orange (Murata)
-        Palette::Hydro,   // E - Bleu Ocean (Furina)
         Palette::Pyro,    // T - Rouge/Orange
-        Palette::Dendro,  // R - Vert Prairie (Nahida)
-        Palette::Anemo,   // I - Turquoise (Venti)
-        Palette::Geo      // S - Jaune Ambre / Or (Zhongli)
+        Palette::Hydro,   // E - Bleu Océan
+        Palette::Pyro,    // T - Rouge/Orange
+        Palette::Dendro,  // R - Vert Prairie
+        Palette::Anemo,   // I - Turquoise
+        Palette::Geo      // S - Or / Ambre
     };
 
     const float tailleLettre = 50.f;
@@ -57,7 +59,7 @@ void Menu::initEcranTitre(float larg, float haut) {
         m_lettreTitre.push_back(lettre);
     }
 
-    // Texte "APPUYEZ SUR ENTREE" centre
+    // Texte "APPUYEZ SUR ENTREE" centré
     m_textConsigne.emplace(*m_police);
     m_textConsigne->setString("APPUYEZ SUR ENTREE");
     m_textConsigne->setCharacterSize(16);
@@ -222,13 +224,11 @@ void Menu::majStyle() {
 
     for (size_t i = 0; i < m_btnsAccueil.size(); ++i) {
         if (static_cast<int>(i) == m_index) {
-            // Bouton selectionne : Hydro (Bleu Ocean Genshin), bordure Geo (Or)
             m_btnsAccueil[i].fond.setFillColor(Palette::Hydro);
             m_btnsAccueil[i].bordure.setOutlineColor(Palette::BordureOr);
             m_btnsAccueil[i].texte.setFillColor(Palette::TexteBoutonActif);
         }
         else {
-            // Bouton inactif : fond gris metallique, bordure doree attenee
             m_btnsAccueil[i].fond.setFillColor(Palette::FondBoutonInactif);
             m_btnsAccueil[i].bordure.setOutlineColor(sf::Color(150, 135, 90));
             m_btnsAccueil[i].texte.setFillColor(Palette::TexteBoutonInactif);
@@ -237,17 +237,15 @@ void Menu::majStyle() {
 }
 
 // ---------------------------------------------------------------
-//  Menu Pause : init
+//  Menu Pause : init et événements
 // ---------------------------------------------------------------
 void Menu::initPause(float larg, float haut) {
     if (!m_police) return;
 
-    // Fond semi-transparent couvrant toute la fenetre
     m_overlayPause.setSize({larg, haut});
     m_overlayPause.setPosition({0.f, 0.f});
-    m_overlayPause.setFillColor(sf::Color(0, 0, 0, 160));
+    m_overlayPause.setFillColor(sf::Color(0, 0, 0, 180));
 
-    // Titre "PAUSE"
     m_titrePause.emplace(*m_police);
     m_titrePause->setString("PAUSE");
     m_titrePause->setCharacterSize(36);
@@ -258,11 +256,11 @@ void Menu::initPause(float larg, float haut) {
     m_titrePause->setOrigin({bTitre.position.x + bTitre.size.x / 2.f,
                              bTitre.position.y + bTitre.size.y / 2.f});
 
-    const float btnLarg    = 300.f;
+    const float btnLarg    = 320.f;
     const float btnHaut    = 50.f;
     const float espacement = 14.f;
 
-    vector<string> libelles = {"REPRENDRE", "RECOMMENCER", "OPTIONS", "QUITTER"};
+    vector<string> libelles = {"REPRENDRE", "RECOMMENCER", "OPTIONS", "MENU PRINCIPAL"};
     const int      nbBoutons = static_cast<int>(libelles.size());
 
     float blocHaut  = nbBoutons * btnHaut + (nbBoutons - 1) * espacement;
@@ -320,10 +318,10 @@ void Menu::majStylePause() {
 
 void Menu::validerOptionPause() {
     switch (m_indexPause) {
-        case 0: /* REPRENDRE */    m_reprise       = true; break;
-        case 1: /* RECOMMENCER */  m_recommencer   = true; break;
-        case 2: /* OPTIONS */      /* TODO */        break;
-        case 3: /* QUITTER */      m_quitterVersMenu = true; break;
+        case 0: /* REPRENDRE */       m_reprise         = true; break;
+        case 1: /* RECOMMENCER */     m_recommencer     = true; break;
+        case 2: /* OPTIONS */         /* TODO */          break;
+        case 3: /* MENU PRINCIPAL */  m_quitterVersMenu = true; break;
         default: break;
     }
 }
@@ -333,9 +331,7 @@ void Menu::ouvrirPause() {
     majStylePause();
 }
 
-void Menu::fermerPause() {
-    // Rien a faire pour l'instant (l'etat est gere par Jeu)
-}
+void Menu::fermerPause() {}
 
 void Menu::gererTouchePause(sf::Keyboard::Key touche) {
     int maxOptions = static_cast<int>(m_btnsPause.size());
@@ -389,15 +385,184 @@ void Menu::gererMolettePause(float delta) {
 }
 
 void Menu::afficherPause(sf::RenderWindow& fenetre) {
-    // Fond semi-transparent par-dessus la grille
     fenetre.draw(m_overlayPause);
-
-    // Titre "PAUSE"
     if (m_titrePause.has_value())
         fenetre.draw(*m_titrePause);
 
-    // Boutons
     for (const auto& btn : m_btnsPause) {
+        fenetre.draw(btn.fond);
+        fenetre.draw(btn.bordure);
+        fenetre.draw(btn.texte);
+    }
+}
+
+// ---------------------------------------------------------------
+//  Écran Game Over : init, événements et rendu
+// ---------------------------------------------------------------
+void Menu::initGameOver(float larg, float haut) {
+    if (!m_police) return;
+
+    m_overlayGameOver.setSize({larg, haut});
+    m_overlayGameOver.setPosition({0.f, 0.f});
+    m_overlayGameOver.setFillColor(sf::Color(0, 0, 0, 200));
+
+    // Titre "GAME OVER"
+    m_titreGameOver.emplace(*m_police);
+    m_titreGameOver->setString("GAME OVER");
+    m_titreGameOver->setCharacterSize(36);
+    m_titreGameOver->setFillColor(Palette::Pyro); // Rouge incandescant
+    m_titreGameOver->setStyle(sf::Text::Bold);
+
+    sf::FloatRect bTitre = m_titreGameOver->getLocalBounds();
+    m_titreGameOver->setOrigin({bTitre.position.x + bTitre.size.x / 2.f,
+                               bTitre.position.y + bTitre.size.y / 2.f});
+
+    // Sous-titre "Voulez-vous recommencer ?"
+    m_sousTitreGameOver.emplace(*m_police);
+    m_sousTitreGameOver->setString("Voulez-vous recommencer ?");
+    m_sousTitreGameOver->setCharacterSize(14);
+    m_sousTitreGameOver->setFillColor(sf::Color(230, 235, 245));
+
+    sf::FloatRect bSousTitre = m_sousTitreGameOver->getLocalBounds();
+    m_sousTitreGameOver->setOrigin({bSousTitre.position.x + bSousTitre.size.x / 2.f,
+                                    bSousTitre.position.y + bSousTitre.size.y / 2.f});
+
+    const float btnLarg    = 320.f;
+    const float btnHaut    = 50.f;
+    const float espacement = 16.f;
+
+    vector<string> libelles = {"RECOMMENCER", "MENU PRINCIPAL"};
+    const int nbBoutons = static_cast<int>(libelles.size());
+
+    float blocHaut  = nbBoutons * btnHaut + (nbBoutons - 1) * espacement;
+    float titreHaut = 36.f + 14.f + 30.f;
+    float totalHaut = titreHaut + blocHaut;
+    float offsetY   = (haut - totalHaut) / 2.f;
+
+    m_titreGameOver->setPosition({larg / 2.f, offsetY + 18.f});
+    m_sousTitreGameOver->setPosition({larg / 2.f, offsetY + 56.f});
+
+    float premierBtnY = offsetY + titreHaut;
+
+    for (size_t i = 0; i < libelles.size(); ++i) {
+        BoutonUI btn(*m_police);
+
+        float x = larg / 2.f - btnLarg / 2.f;
+        float y = premierBtnY + (i * (btnHaut + espacement));
+
+        btn.fond.setSize({btnLarg, btnHaut});
+        btn.fond.setPosition({x, y});
+
+        btn.bordure.setSize({btnLarg, btnHaut});
+        btn.bordure.setPosition({x, y});
+        btn.bordure.setFillColor(sf::Color::Transparent);
+        btn.bordure.setOutlineThickness(4.f);
+
+        btn.texte.setFont(*m_police);
+        btn.texte.setString(libelles[i]);
+        btn.texte.setCharacterSize(14);
+        btn.texte.setStyle(sf::Text::Bold);
+
+        sf::FloatRect bounds = btn.texte.getLocalBounds();
+        btn.texte.setOrigin({bounds.position.x + bounds.size.x / 2.f,
+                              bounds.position.y + bounds.size.y / 2.f});
+        btn.texte.setPosition({x + btnLarg / 2.f, y + btnHaut / 2.f});
+
+        m_btnsGameOver.push_back(btn);
+    }
+
+    majStyleGameOver();
+}
+
+void Menu::majStyleGameOver() {
+    for (size_t i = 0; i < m_btnsGameOver.size(); ++i) {
+        if (static_cast<int>(i) == m_indexGameOver) {
+            m_btnsGameOver[i].fond.setFillColor(Palette::Pyro);
+            m_btnsGameOver[i].bordure.setOutlineColor(Palette::BordureOr);
+            m_btnsGameOver[i].texte.setFillColor(Palette::TexteBoutonActif);
+        }
+        else {
+            m_btnsGameOver[i].fond.setFillColor(Palette::FondBoutonInactif);
+            m_btnsGameOver[i].bordure.setOutlineColor(sf::Color(150, 135, 90));
+            m_btnsGameOver[i].texte.setFillColor(Palette::TexteBoutonInactif);
+        }
+    }
+}
+
+void Menu::validerOptionGameOver() {
+    switch (m_indexGameOver) {
+        case 0: /* RECOMMENCER */     m_recommencerGameOver     = true; break;
+        case 1: /* MENU PRINCIPAL */  m_quitterVersMenuGameOver = true; break;
+        default: break;
+    }
+}
+
+void Menu::ouvrirGameOver() {
+    m_indexGameOver = 0;
+    majStyleGameOver();
+}
+
+void Menu::gererToucheGameOver(sf::Keyboard::Key touche) {
+    int maxOptions = static_cast<int>(m_btnsGameOver.size());
+
+    if (touche == sf::Keyboard::Key::Up) {
+        m_indexGameOver = (m_indexGameOver - 1 + maxOptions) % maxOptions;
+        majStyleGameOver();
+    }
+    else if (touche == sf::Keyboard::Key::Down) {
+        m_indexGameOver = (m_indexGameOver + 1) % maxOptions;
+        majStyleGameOver();
+    }
+    else if (touche == sf::Keyboard::Key::Enter) {
+        validerOptionGameOver();
+    }
+}
+
+void Menu::gererSourisGameOver(sf::Vector2i pos) {
+    sf::Vector2f p(static_cast<float>(pos.x), static_cast<float>(pos.y));
+
+    for (size_t i = 0; i < m_btnsGameOver.size(); ++i) {
+        if (m_btnsGameOver[i].fond.getGlobalBounds().contains(p)) {
+            m_indexGameOver = static_cast<int>(i);
+            majStyleGameOver();
+            break;
+        }
+    }
+}
+
+void Menu::gererClicGameOver(sf::Vector2i pos) {
+    sf::Vector2f p(static_cast<float>(pos.x), static_cast<float>(pos.y));
+
+    for (size_t i = 0; i < m_btnsGameOver.size(); ++i) {
+        if (m_btnsGameOver[i].fond.getGlobalBounds().contains(p)) {
+            m_indexGameOver = static_cast<int>(i);
+            validerOptionGameOver();
+            break;
+        }
+    }
+}
+
+void Menu::gererMoletteGameOver(float delta) {
+    int maxOptions = static_cast<int>(m_btnsGameOver.size());
+
+    if (delta > 0.f)
+        m_indexGameOver = (m_indexGameOver - 1 + maxOptions) % maxOptions;
+    else if (delta < 0.f)
+        m_indexGameOver = (m_indexGameOver + 1) % maxOptions;
+
+    majStyleGameOver();
+}
+
+void Menu::afficherGameOver(sf::RenderWindow& fenetre) {
+    fenetre.draw(m_overlayGameOver);
+
+    if (m_titreGameOver.has_value())
+        fenetre.draw(*m_titreGameOver);
+
+    if (m_sousTitreGameOver.has_value())
+        fenetre.draw(*m_sousTitreGameOver);
+
+    for (const auto& btn : m_btnsGameOver) {
         fenetre.draw(btn.fond);
         fenetre.draw(btn.bordure);
         fenetre.draw(btn.texte);

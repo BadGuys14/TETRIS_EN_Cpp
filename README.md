@@ -625,55 +625,42 @@ Mise a jour du fichier de projet `.cbp` pour integrer les unites `include/Piece.
 
 ---
 
-## Modifications du 08/09/2026 — Rotation, Ghost Piece, Score/Combos & Panneau Lateral UI
+## Modifications du 08/09/2026 — Rotation, Ghost Piece, Score/Combos, Écran Game Over & Palette Hyper-Saturée
 
 ### Contexte
 
-Implementation complete des fonctionnalites d extension selon le plan valide : rotation des pieces a 360°, ombre de projection au sol (Ghost Piece), chute instantanee (Hard Drop), comptage des scores et combos avec sauvegarde du meilleur score, et interface laterale complete.
+Implémentation complète des fonctionnalités d extension selon les demandes :
+1. Écran Game Over dédié ("GAME OVER", "Voulez-vous recommencer ?", boutons `RECOMMENCER` et `MENU PRINCIPAL`).
+2. Option explicite `MENU PRINCIPAL` dans le menu Pause.
+3. Palette de couleurs Genshin Impact **hyper-saturée et éclatante** (non pastel).
+4. Visibilité accrue de la Ghost Piece (ombre semi-transparente renforcée à 120/255 d opacité et contour à 230/255).
+5. Rotation 360° avec Wall Kicks, Hard Drop (`Espace`), scores, combos et panneau latéral UI.
 
 ---
 
-### Rotation & Wall Kicks (`Piece.hpp` / `Piece.cpp`)
+### Palette & Graphismes (`Palette.h` / `Piece.cpp`)
 
-- **Gestion de l orientation** : Membre `m_orientation` (0, 1, 2, 3) pour chaque piece.
-- **Coordonnees selon orientation** : `calculerCoords()` gere les 4 positions de chaque forme (I, O, T, L, J, S, Z).
-- **Wall Kicks & Floor Kicks (`Jeu::tournerPieceCourante`)** : Si la rotation se fait contre un mur ou le sol, le jeu teste automatiquement un decalage de -1, +1, -2, +2 colonnes ou +1 ligne avant d annuler.
-
----
-
-### Ghost Piece / Ombre d atterrissage (`calculerGhostPiece` / `dessinerFantome`)
-
-- Projection en temps reel de la piece courante vers le bas jusqu au premier obstacle.
-- Affichage semi-transparent (opacite alpha = 50) avec bordure assortie pour anticiper l atterrissage.
+- **Couleurs Hyper-Saturées** : Teintes officielles des Archons Genshin Impact réajustées pour être très vives et contrastées.
+- **Ghost Piece Renforcée** : Ombre d atterrissage bien visible avec un remplissage alpha = 120, une bordure alpha = 230 et une épaisseur de -2px.
 
 ---
 
-### Hard Drop (`hardDropPiece`)
+### Écran Game Over & Pause (`Menu.h` / `Menu.cpp` / `jeu.cpp`)
 
-- Pression sur la touche `Espace` pour plaquer instantanement la piece au sol avec attribution de points bonus de chute (+2 pts / case).
-
----
-
-### Score, Combos & Sauvegarde (`verrouillerPiece` / `chargerMeilleurScore`)
-
-- **Attribution des points** :
-  - 1 ligne (Single) : 100 pts
-  - 2 lignes (Double) : 300 pts
-  - 3 lignes (Triple) : 500 pts
-  - 4 lignes (Tetris) : 800 pts
-- **Multiplicateur de Combo** : Accumulation de bonus `(combo - 1) * 50` lors des nettoyages de lignes consecutifs.
-- **Persistence du Meilleur Score** : Sauvegarde automatique dans `assets/bestscore.txt`.
+- **Écran Game Over (`EtatJeu::GameOver`)** :
+  - Overlay sombre par-dessus la grille.
+  - Titre "GAME OVER" (Rouge Pyro incandescent) et question "Voulez-vous recommencer ?".
+  - Boutons interactifs : `RECOMMENCER` (relance une partie) et `MENU PRINCIPAL` (retour au menu d accueil).
+- **Menu Pause** : Intègre l option claire `MENU PRINCIPAL` pour revenir facilement à l accueil.
 
 ---
 
-### Panneau Lateral & UI (`Jeu::dessinerPanneauLateral`)
+### Rotation & Gameplay (`Piece.cpp` / `jeu.cpp`)
 
-- **Interface stylisee a droite (x: 280 a 800 px)** :
-  - **BEST SCORE** : En vert Anemo/Dendro avec enregistrement.
-  - **CURRENT SCORE** : Score dynamique de la partie en cours.
-  - **COMBO COUNTER** : Indicateur dore en cas de combo actif.
-  - **NEXT PIECE** : Encadré blanc de previsualisation centree pour la piece suivante.
-  - **CONTROLS** : Guide des commandes (`< > Move`, `^ / Z Rotate`, `v Soft Drop`, `Spc Hard Drop`, `Esc Pause`).
+- **Rotation & Wall Kicks** : 4 orientations par pièce (0°, 90°, 180°, 270°) avec décalage mural automatique.
+- **Hard Drop** : Touche `Espace` (+2 pts / case).
+- **Scores, Combos & Meilleur Score** : Enregistrement automatique dans `assets/bestscore.txt`.
+- **Panneau Latéral** : Displays `BEST SCORE`, `CURRENT SCORE`, `COMBO`, `NEXT PIECE` et `CONTROLS`.
 
 ---
 
@@ -682,6 +669,5 @@ Implementation complete des fonctionnalites d extension selon le plan valide : r
 | Fonctionnalite | Fichiers concernes |
 |----------------|--------------------|
 | Ecran OPTIONS (volume, difficulte...) | `Menu.h`, `Menu.cpp` |
-| Ecran GAME OVER complet avec ecran de fin | `jeu.hpp`, `jeu.cpp`, `Menu.h` |
 | Ecran CREDITS | `Menu.h`, `Menu.cpp` |
 | Gestion du redimensionnement dynamique de fenetre | `jeu.cpp` (sf::Event::Resized) |

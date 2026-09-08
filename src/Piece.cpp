@@ -139,8 +139,9 @@ void Piece::dessiner(sf::RenderWindow& fenetre, int tailleCase) const {
 // -----------------------------------------------------------------------------
 // EXPLICATION POUR LE PROFESSEUR :
 // Dessine la "Ghost Piece" (pièce fantôme) qui projette l'ombre d'atterrissage.
-// On utilise une couleur semi-transparente (alpha = 50) avec une bordure fine
-// de la couleur officielle de la pièce pour un effet visuel moderne.
+// On utilise une couleur semi-transparente bien visible (alpha = 120) avec un contour
+// accentué (alpha = 230, épaisseur -2px) pour permettre au joueur de repérer précisément
+// où la pièce va tomber.
 // -----------------------------------------------------------------------------
 void Piece::dessinerFantome(sf::RenderWindow& fenetre, int tailleCase) const {
     sf::RectangleShape bloc(sf::Vector2f({
@@ -149,13 +150,13 @@ void Piece::dessinerFantome(sf::RenderWindow& fenetre, int tailleCase) const {
     }));
 
     sf::Color couleurFond = m_couleur;
-    couleurFond.a = 50; // Semi-transparent (opacité 50/255)
+    couleurFond.a = 120; // Opacité augmentée pour une meilleure visibilité sur la grille
 
     sf::Color couleurBordure = m_couleur;
-    couleurBordure.a = 160;
+    couleurBordure.a = 230; // Contour bien distinct
 
     bloc.setFillColor(couleurFond);
-    bloc.setOutlineThickness(-1.f);
+    bloc.setOutlineThickness(-2.f);
     bloc.setOutlineColor(couleurBordure);
 
     for (const auto& pos : positionAbs()) {

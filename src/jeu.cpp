@@ -99,8 +99,8 @@ void Jeu::demarrerNouvellePartie() {
     m_horlogeChute.restart();
 
     if (!m_grille.positionValide(m_pieceCourante->positionAbs())) {
-        m_etat = EtatJeu::Menu;
-        m_pieceCourante.reset();
+        m_etat = EtatJeu::GameOver;
+        m_menu.ouvrirGameOver();
     }
 }
 
@@ -124,7 +124,7 @@ bool Jeu::essayerDeplacerPiece(int dl, int dc) {
 // EXPLICATION POUR LE PROFESSEUR :
 // Tente de faire pivoter la pièce courante.
 // Si la rotation directe frappe un obstacle ou un mur, on effectue des "wall kicks"
-// (tests de décalage de -1, +1, -2, +2 cases) pour ajuster la position sans bloquer le joueur.
+// (tests de décalage de -1, +1, -2, +2 cases ou +1 ligne vers le haut) pour ajuster la position.
 // -----------------------------------------------------------------------------
 void Jeu::tournerPieceCourante() {
     if (!m_pieceCourante.has_value()) return;
@@ -132,13 +132,11 @@ void Jeu::tournerPieceCourante() {
     Piece testPiece = *m_pieceCourante;
     testPiece.tournerHoraire();
 
-    // 1. Test direct
     if (m_grille.positionValide(testPiece.positionAbs())) {
         *m_pieceCourante = testPiece;
         return;
     }
 
-    // 2. Wall kick gauche (-1 col)
     Piece testLeft = testPiece;
     testLeft.deplacer(0, -1);
     if (m_grille.positionValide(testLeft.positionAbs())) {
@@ -146,7 +144,6 @@ void Jeu::tournerPieceCourante() {
         return;
     }
 
-    // 3. Wall kick droite (+1 col)
     Piece testRight = testPiece;
     testRight.deplacer(0, 1);
     if (m_grille.positionValide(testRight.positionAbs())) {
@@ -154,7 +151,6 @@ void Jeu::tournerPieceCourante() {
         return;
     }
 
-    // 4. Wall kick gauche étendu (-2 col pour la pièce I)
     Piece testLeft2 = testPiece;
     testLeft2.deplacer(0, -2);
     if (m_grille.positionValide(testLeft2.positionAbs())) {
@@ -162,7 +158,6 @@ void Jeu::tournerPieceCourante() {
         return;
     }
 
-    // 5. Wall kick droite étendu (+2 col pour la pièce I)
     Piece testRight2 = testPiece;
     testRight2.deplacer(0, 2);
     if (m_grille.positionValide(testRight2.positionAbs())) {
@@ -170,7 +165,6 @@ void Jeu::tournerPieceCourante() {
         return;
     }
 
-    // 6. Floor kick (+1 ligne vers le haut si près du sol)
     Piece testUp = testPiece;
     testUp.deplacer(-1, 0);
     if (m_grille.positionValide(testUp.positionAbs())) {
@@ -185,7 +179,7 @@ Piece Jeu::calculerGhostPiece() const {
     while (m_grille.positionValide(ghost.positionAbs())) {
         ghost.deplacer(1, 0);
     }
-    ghost.deplacer(-1, 0); // Remonte à la dernière position valide
+    ghost.deplacer(-1, 0);
     return ghost;
 }
 
@@ -195,7 +189,7 @@ void Jeu::hardDropPiece() {
 
     int bonusChute = 0;
     while (essayerDeplacerPiece(1, 0)) {
-        bonusChute += 2; // +2 points par ligne franchie en Hard Drop
+        bonusChute += 2;
     }
     m_score += bonusChute;
     if (m_score > m_meilleurScore) {
@@ -233,19 +227,18 @@ void Jeu::verrouillerPiece() {
             sauvegarderMeilleurScore();
         }
     } else {
-        m_combo = 0; // Combo rompu si aucune ligne n'est effacée
+        m_combo = 0;
     }
 
     // 3. Passer à la pièce suivante
     m_pieceCourante = m_pieceSuivante;
     m_pieceSuivante = Piece(piocherForme());
 
-    // 4. Test d'apparition
+    // 4. Test d'apparition (Défaite / Game Over)
     if (!m_grille.positionValide(m_pieceCourante->positionAbs())) {
         sauvegarderMeilleurScore();
-        m_etat = EtatJeu::Menu;
-        m_grille.reinitialiser();
-        m_pieceCourante.reset();
+        m_etat = EtatJeu::GameOver;
+        m_menu.ouvrirGameOver();
     }
 
     m_horlogeChute.restart();
@@ -265,6 +258,7 @@ void Jeu::gesEvenements() {
             if (e->code == sf::Keyboard::Key::Escape) {
                 if (m_etat == EtatJeu::EnJeu) {
                     m_etat = EtatJeu::Pause;
+                    m_menu.ouvrirPause();
                 } else if (m_etat == EtatJeu::Pause) {
                     m_etat = EtatJeu::EnJeu;
                     m_horlogeChute.restart();
@@ -295,7 +289,7 @@ void Jeu::gesEvenements() {
                     essayerDeplacerPiece(0, 1);
                 }
                 else if (e->code == sf::Keyboard::Key::Up || e->code == sf::Keyboard::Key::Z) {
-                    tournerPieceCourante(); // Rotation de la pièce
+                    tournerPieceCourante();
                 }
                 else if (e->code == sf::Keyboard::Key::Down) {
                     if (!essayerDeplacerPiece(1, 0)) {
@@ -305,7 +299,7 @@ void Jeu::gesEvenements() {
                     }
                 }
                 else if (e->code == sf::Keyboard::Key::Space) {
-                    hardDropPiece(); // Chute instantanée
+                    hardDropPiece();
                 }
             }
         }
@@ -322,6 +316,20 @@ void Jeu::gesEvenements() {
 
             if (const auto* e = event->getIf<sf::Event::MouseWheelScrolled>())
                 m_menu.gererMolettePause(e->delta);
+        }
+        else if (m_etat == EtatJeu::GameOver) {
+            if (const auto* e = event->getIf<sf::Event::KeyPressed>())
+                m_menu.gererToucheGameOver(e->code);
+
+            if (const auto* e = event->getIf<sf::Event::MouseMoved>())
+                m_menu.gererSourisGameOver({e->position.x, e->position.y});
+
+            if (const auto* e = event->getIf<sf::Event::MouseButtonPressed>())
+                if (e->button == sf::Mouse::Button::Left)
+                    m_menu.gererClicGameOver({e->position.x, e->position.y});
+
+            if (const auto* e = event->getIf<sf::Event::MouseWheelScrolled>())
+                m_menu.gererMoletteGameOver(e->delta);
         }
     }
 }
@@ -365,26 +373,31 @@ void Jeu::miseAJour() {
             m_pieceCourante.reset();
         }
     }
+    else if (m_etat == EtatJeu::GameOver) {
+        if (m_menu.demandeRecommencerGameOver()) {
+            m_menu.resetRecommencerGameOver();
+            m_etat = EtatJeu::EnJeu;
+            demarrerNouvellePartie();
+        }
+        else if (m_menu.demandeMenuGameOver()) {
+            m_menu.resetMenuGameOver();
+            m_etat = EtatJeu::Menu;
+            m_grille.reinitialiser();
+            m_pieceCourante.reset();
+        }
+    }
 }
 
 // -----------------------------------------------------------------------------
 // EXPLICATION POUR LE PROFESSEUR :
 // Dessine le panneau latéral droit (x: 280 à 800).
-// Ce panneau affiche :
-// 1. BEST SCORE (Meilleur score en vert Anemo/Dendro)
-// 2. CURRENT SCORE (Score actuel de la partie)
-// 3. COMBO COUNTER (Multiplicateur si lignes d'affilée)
-// 4. NEXT PIECE (Encadré avec la pièce suivante centrée)
-// 5. CONTROLS (Rappel des commandes)
 // -----------------------------------------------------------------------------
 void Jeu::dessinerPanneauLateral() {
-    // Fond du panneau latéral (gris très clair moderne)
     sf::RectangleShape fondSidebar(sf::Vector2f({520.f, 600.f}));
     fondSidebar.setPosition({280.f, 0.f});
     fondSidebar.setFillColor(sf::Color(245, 246, 250));
     m_fenetre.draw(fondSidebar);
 
-    // Ligne séparatrice verticale
     sf::RectangleShape ligneSeparation(sf::Vector2f({2.f, 600.f}));
     ligneSeparation.setPosition({280.f, 0.f});
     ligneSeparation.setFillColor(sf::Color(210, 215, 225));
@@ -403,13 +416,12 @@ void Jeu::dessinerPanneauLateral() {
 
     txt.setString(std::to_string(m_meilleurScore));
     txt.setCharacterSize(22);
-    txt.setFillColor(Palette::Dendro); // Couleur verte moderne
+    txt.setFillColor(Palette::Dendro);
     sf::FloatRect b2 = txt.getLocalBounds();
     txt.setOrigin({b2.position.x + b2.size.x / 2.f, b2.position.y + b2.size.y / 2.f});
     txt.setPosition({540.f, 65.f});
     m_fenetre.draw(txt);
 
-    // Séparateur horizontal discret
     sf::RectangleShape div1(sf::Vector2f({240.f, 1.f}));
     div1.setPosition({420.f, 95.f});
     div1.setFillColor(sf::Color(220, 225, 235));
@@ -432,11 +444,10 @@ void Jeu::dessinerPanneauLateral() {
     txt.setPosition({540.f, 150.f});
     m_fenetre.draw(txt);
 
-    // Affichage du COMBO si > 1
     if (m_combo > 1) {
         txt.setString("COMBO x" + std::to_string(m_combo) + "!");
         txt.setCharacterSize(14);
-        txt.setFillColor(Palette::Geo); // Or
+        txt.setFillColor(Palette::Geo);
         sf::FloatRect bc = txt.getLocalBounds();
         txt.setOrigin({bc.position.x + bc.size.x / 2.f, bc.position.y + bc.size.y / 2.f});
         txt.setPosition({540.f, 180.f});
@@ -452,7 +463,6 @@ void Jeu::dessinerPanneauLateral() {
     txt.setPosition({540.f, 215.f});
     m_fenetre.draw(txt);
 
-    // Cadre blanc d'aperçu de la pièce suivante
     sf::RectangleShape boxNext(sf::Vector2f({160.f, 130.f}));
     boxNext.setPosition({460.f, 235.f});
     boxNext.setFillColor(sf::Color::White);
@@ -460,8 +470,6 @@ void Jeu::dessinerPanneauLateral() {
     boxNext.setOutlineColor(sf::Color(220, 224, 232));
     m_fenetre.draw(boxNext);
 
-    // Dessin de la pièce suivante au centre du cadre
-    // Une case fait 24px dans l'aperçu pour bien s'intégrer
     float previewX = 490.f;
     float previewY = 275.f;
     if (m_pieceSuivante.getForme() == FormePiece::I) {
@@ -516,15 +524,11 @@ void Jeu::affichage() {
         m_grille.dessiner(m_fenetre);
 
         if (m_pieceCourante.has_value()) {
-            // 1. Dessiner la pièce fantôme (ombre projetée au sol)
             Piece ghost = calculerGhostPiece();
             ghost.dessinerFantome(m_fenetre, m_grille.getTailleCase());
-
-            // 2. Dessiner la pièce courante en chute
             m_pieceCourante->dessiner(m_fenetre, m_grille.getTailleCase());
         }
 
-        // 3. Dessiner le panneau latéral (scores, aperçu, contrôles)
         dessinerPanneauLateral();
     }
     else if (m_etat == EtatJeu::Pause) {
@@ -537,7 +541,12 @@ void Jeu::affichage() {
         }
 
         dessinerPanneauLateral();
-        m_menu.afficherPause(m_fenetre); // Overlay pause par-dessus
+        m_menu.afficherPause(m_fenetre);
+    }
+    else if (m_etat == EtatJeu::GameOver) {
+        m_grille.dessiner(m_fenetre);
+        dessinerPanneauLateral();
+        m_menu.afficherGameOver(m_fenetre);
     }
 
     m_fenetre.display();

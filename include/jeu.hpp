@@ -14,9 +14,10 @@
 //  Classe Jeu : boucle principale, fenetre, evenements et logique
 // ---------------------------------------------------------------
 enum class EtatJeu {
-    Menu,   // Menus principaux (titre + accueil)
-    EnJeu,  // Partie en cours
-    Pause   // Menu pause
+    Menu,      // Menus principaux (titre + accueil)
+    EnJeu,     // Partie en cours
+    Pause,     // Menu pause overlay
+    GameOver   // Écran Game Over overlay
 };
 
 class Jeu {
