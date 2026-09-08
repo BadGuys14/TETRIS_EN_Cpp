@@ -20,6 +20,9 @@ void Menu::init(float larg, float haut, const sf::Font& police) {
     m_btnsAccueil.clear();
     m_btnsPause.clear();
     m_btnsGameOver.clear();
+    m_notesDeco.clear();
+    m_lignesDeco.clear();
+    m_blocsDeco.clear();
 
     initEcranTitre(larg, haut);
     initAccueil(larg, haut);
@@ -28,10 +31,18 @@ void Menu::init(float larg, float haut, const sf::Font& police) {
     majStyle();
 }
 
+// -----------------------------------------------------------------------------
+// EXPLICATION POUR LE PROFESSEUR :
+// Initialise l'écran titre (Splash Screen) inspiré de la maquette du projet :
+// 1. Logo "TETRIS" avec chaque lettre colorée selon les 7 éléments Genshin Impact.
+// 2. Sous-titre des auteurs "Emmanuel & Martinaud".
+// 3. Éléments décoratifs : notes de musique (♪ ♫), portées de 5 lignes et mini-pièces Tetris.
+// 4. Utilisation de getLocalBounds() et setOrigin() pour centrer précisément chaque texte.
+// -----------------------------------------------------------------------------
 void Menu::initEcranTitre(float larg, float haut) {
     if (!m_police) return;
 
-    // Couleurs saturées officielles des Archons Genshin Impact
+    // --- 1. Titre multicolore TETRIS ---
     vector<sf::Color> couleurs = {
         Palette::Pyro,    // T - Rouge/Orange
         Palette::Hydro,   // E - Bleu Océan
@@ -41,7 +52,7 @@ void Menu::initEcranTitre(float larg, float haut) {
         Palette::Geo      // S - Or / Ambre
     };
 
-    const float tailleLettre = 50.f;
+    const float tailleLettre = 48.f;
     const string titre = "TETRIS";
     const float largeurTotale = titre.size() * tailleLettre;
     float posX = larg / 2.f - largeurTotale / 2.f;
@@ -49,32 +60,103 @@ void Menu::initEcranTitre(float larg, float haut) {
     for (size_t i = 0; i < titre.size(); i++) {
         sf::Text lettre(*m_police);
         lettre.setString(string(1, titre[i]));
-        lettre.setCharacterSize(48);
+        lettre.setCharacterSize(44);
         lettre.setFillColor(couleurs[i]);
         lettre.setStyle(sf::Text::Bold);
 
         sf::FloatRect bL = lettre.getLocalBounds();
         lettre.setOrigin({bL.position.x + bL.size.x / 2.f, bL.position.y + bL.size.y / 2.f});
-        lettre.setPosition({posX + (i * tailleLettre) + (tailleLettre / 2.f), haut / 3.f});
+        lettre.setPosition({posX + (i * tailleLettre) + (tailleLettre / 2.f), haut * 0.22f});
         m_lettreTitre.push_back(lettre);
     }
 
-    // Texte "APPUYEZ SUR ENTREE" centré
+    // --- 2. Sous-titre des Auteurs "Emmanuel & Martinaud" ---
+    m_sousTitreAuteurs.emplace(*m_police);
+    m_sousTitreAuteurs->setString("Emmanuel & Martinaud");
+    m_sousTitreAuteurs->setCharacterSize(16);
+    m_sousTitreAuteurs->setFillColor(sf::Color(60, 50, 45));
+    m_sousTitreAuteurs->setStyle(sf::Text::Bold);
+
+    sf::FloatRect bAut = m_sousTitreAuteurs->getLocalBounds();
+    m_sousTitreAuteurs->setOrigin({bAut.position.x + bAut.size.x / 2.f, bAut.position.y + bAut.size.y / 2.f});
+    m_sousTitreAuteurs->setPosition({larg / 2.f, haut * 0.36f});
+
+    // --- 3. Décoration : Mini Pièces Tetris au centre (comme sur la maquette) ---
+    // Barres 4x1 (Vert Anemo)
+    const float tailleBlocDeco = 26.f;
+    float centreX = larg / 2.f;
+    float centreY = haut * 0.54f;
+
+    // Pièce I (4 blocs horizontaux)
+    for (int c = -2; c < 2; ++c) {
+        sf::RectangleShape bloc(sf::Vector2f({tailleBlocDeco - 1.f, tailleBlocDeco - 1.f}));
+        bloc.setFillColor(Palette::Anemo);
+        bloc.setPosition({centreX + c * tailleBlocDeco, centreY - tailleBlocDeco});
+        m_blocsDeco.push_back(bloc);
+    }
+
+    // Pièce O (Carré 2x2 Or/Geo en dessous)
+    for (int l = 0; l < 2; ++l) {
+        for (int c = -1; c < 1; ++c) {
+            sf::RectangleShape bloc(sf::Vector2f({tailleBlocDeco - 1.f, tailleBlocDeco - 1.f}));
+            bloc.setFillColor(Palette::Geo);
+            bloc.setPosition({centreX + c * tailleBlocDeco, centreY + l * tailleBlocDeco});
+            m_blocsDeco.push_back(bloc);
+        }
+    }
+
+    // --- 4. Décoration : Symboles Musicales (Notes ♪ ♫) ---
+    struct NoteData { std::string sym; float x; float y; unsigned int sz; sf::Color col; };
+    std::vector<NoteData> notes = {
+        {"#",  larg * 0.12f, haut * 0.18f, 22, sf::Color(120, 110, 100)},
+        {"*",  larg * 0.24f, haut * 0.14f, 18, sf::Color(130, 120, 110)},
+        {"#",  larg * 0.52f, haut * 0.08f, 20, sf::Color(140, 130, 120)},
+        {"*",  larg * 0.76f, haut * 0.12f, 18, sf::Color(130, 120, 110)},
+        {"#",  larg * 0.86f, haut * 0.22f, 22, sf::Color(120, 110, 100)},
+        {"*",  larg * 0.10f, haut * 0.44f, 20, sf::Color(140, 130, 110)},
+        {"#",  larg * 0.90f, haut * 0.58f, 20, sf::Color(140, 130, 110)},
+        {"*",  larg * 0.18f, haut * 0.70f, 18, sf::Color(130, 120, 110)},
+        {"#",  larg * 0.80f, haut * 0.74f, 20, sf::Color(130, 120, 110)}
+    };
+
+    for (const auto& nd : notes) {
+        sf::Text n(*m_police);
+        n.setString(nd.sym);
+        n.setCharacterSize(nd.sz);
+        n.setFillColor(nd.col);
+        n.setPosition({nd.x, nd.y});
+        m_notesDeco.push_back(n);
+    }
+
+    // --- 5. Décoration : Lignes de Portée Musicales ---
+    // Groupe de 5 lignes fines à droite et en bas à gauche
+    auto ajouterPortee = [&](float posX, float posY, float largeur) {
+        for (int i = 0; i < 5; ++i) {
+            sf::RectangleShape ligne(sf::Vector2f({largeur, 1.f}));
+            ligne.setFillColor(sf::Color(180, 175, 170));
+            ligne.setPosition({posX, posY + i * 5.f});
+            m_lignesDeco.push_back(ligne);
+        }
+    };
+
+    ajouterPortee(larg * 0.72f, haut * 0.36f, 180.f); // Portée droite
+    ajouterPortee(larg * 0.06f, haut * 0.82f, 180.f); // Portée bas gauche
+
+    // --- 6. Texte d'instruction "APPUYEZ SUR ENTREE POUR COMMENCER" ---
     m_textConsigne.emplace(*m_police);
-    m_textConsigne->setString("APPUYEZ SUR ENTREE");
-    m_textConsigne->setCharacterSize(16);
-    m_textConsigne->setFillColor(Palette::Geo);
+    m_textConsigne->setString("APPUYEZ SUR ENTREE POUR COMMENCER");
+    m_textConsigne->setCharacterSize(14);
+    m_textConsigne->setFillColor(Palette::TexteBoutonInactif);
 
     sf::FloatRect b = m_textConsigne->getLocalBounds();
-    m_textConsigne->setOrigin({b.position.x + b.size.x / 2.f,
-                                b.position.y + b.size.y / 2.f});
-    m_textConsigne->setPosition({larg / 2.f, haut * 0.72f});
+    m_textConsigne->setOrigin({b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f});
+    m_textConsigne->setPosition({larg / 2.f, haut * 0.90f});
 }
 
+// Initialisation du Menu Principal (Accueil)
 void Menu::initAccueil(float larg, float haut) {
     if (!m_police) return;
 
-    // Titre "MENU"
     m_titreMenu.emplace(*m_police);
     m_titreMenu->setString("MENU");
     m_titreMenu->setCharacterSize(36);
@@ -396,9 +478,14 @@ void Menu::afficherPause(sf::RenderWindow& fenetre) {
     }
 }
 
-// ---------------------------------------------------------------
-//  Écran Game Over : init, événements et rendu
-// ---------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// EXPLICATION POUR LE PROFESSEUR :
+// Initialise l'overlay Game Over affiché lors d'une défaite :
+// 1. m_overlayGameOver : Rectangle semi-transparent (noir alpha=200) recouvrant la fenêtre.
+// 2. m_titreGameOver : Titre "GAME OVER" rouge Pyro imposant.
+// 3. m_sousTitreGameOver : Question "Voulez-vous recommencer ?" pour interroger le joueur.
+// 4. m_btnsGameOver : Liste de 2 boutons interactifs ("RECOMMENCER" et "MENU PRINCIPAL").
+// -----------------------------------------------------------------------------
 void Menu::initGameOver(float larg, float haut) {
     if (!m_police) return;
 
@@ -410,7 +497,7 @@ void Menu::initGameOver(float larg, float haut) {
     m_titreGameOver.emplace(*m_police);
     m_titreGameOver->setString("GAME OVER");
     m_titreGameOver->setCharacterSize(36);
-    m_titreGameOver->setFillColor(Palette::Pyro); // Rouge incandescant
+    m_titreGameOver->setFillColor(Palette::Pyro);
     m_titreGameOver->setStyle(sf::Text::Bold);
 
     sf::FloatRect bTitre = m_titreGameOver->getLocalBounds();
@@ -570,12 +657,36 @@ void Menu::afficherGameOver(sf::RenderWindow& fenetre) {
 }
 
 // ---------------------------------------------------------------
-
+//  Rendu de l'écran Titre décoré et de l'Accueil
+// ---------------------------------------------------------------
 void Menu::afficher(sf::RenderWindow& fenetre) {
     if (m_etat == MenuState::EcranTitre) {
+        // 1. Dessiner les lignes de portée décoratives
+        for (const auto& ligne : m_lignesDeco) {
+            fenetre.draw(ligne);
+        }
+
+        // 2. Dessiner les notes de musique décoratives
+        for (const auto& note : m_notesDeco) {
+            fenetre.draw(note);
+        }
+
+        // 3. Dessiner les mini tetraminos au centre
+        for (const auto& bloc : m_blocsDeco) {
+            fenetre.draw(bloc);
+        }
+
+        // 4. Dessiner le logo TETRIS
         for (const auto& lettre : m_lettreTitre) {
             fenetre.draw(lettre);
         }
+
+        // 5. Dessiner le sous-titre des auteurs "Emmanuel & Martinaud"
+        if (m_sousTitreAuteurs.has_value()) {
+            fenetre.draw(*m_sousTitreAuteurs);
+        }
+
+        // 6. Dessiner la consigne "APPUYEZ SUR ENTREE"
         if (m_textConsigne.has_value()) {
             fenetre.draw(*m_textConsigne);
         }

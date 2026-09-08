@@ -5,12 +5,19 @@
 #include <optional>
 #include "Palette.h"
 
-// États du menu principal
+// -----------------------------------------------------------------------------
+// EXPLICATION POUR LE PROFESSEUR :
+// Énumération des différents états du menu de l'application.
+// - EcranTitre : Écran d'accueil décoré (splash screen) avec logo multicolore.
+// - Accueil    : Menu principal avec les options de jeu (PLAY, OPTIONS, EXIT...).
+// - Pause      : Overlay de pause affiché par-dessus la partie en cours.
+// - GameOver   : Overlay de fin de partie avec question et boutons de reprise.
+// -----------------------------------------------------------------------------
 enum class MenuState {
-    EcranTitre,  // Écran splash avec titre TETRIS multicolore
-    Accueil,     // Menu principal
-    Pause,       // Menu pause overlay
-    GameOver     // Écran Game Over overlay
+    EcranTitre,  
+    Accueil,     
+    Pause,       
+    GameOver     
 };
 
 class Menu
@@ -21,13 +28,13 @@ public:
 
     void init(float larg, float haut, const sf::Font& police);
 
-    // Gestion des événements (clavier + souris) - Menu Principal
+    // --- Événements du Menu Principal ---
     void gererTouche(sf::Keyboard::Key touche);
     void gererSouris(sf::Vector2i pos);
     void gererClic(sf::Vector2i pos);
     void gererMolette(float delta);
 
-    // Rendu du menu principal
+    // --- Rendu du Menu Principal et Splash Screen ---
     void afficher(sf::RenderWindow& fenetre);
 
     // Accesseurs
@@ -66,6 +73,7 @@ public:
     void resetMenuGameOver()          { m_quitterVersMenuGameOver = false; }
 
 private:
+    // Structure regroupant les 3 composants graphiques SFML d'un bouton UI
     struct BoutonUI {
         sf::RectangleShape fond;
         sf::RectangleShape bordure;
@@ -74,6 +82,7 @@ private:
         explicit BoutonUI(const sf::Font& police) : texte(police) {}
     };
 
+    // Méthodes d'initialisation privées
     void initEcranTitre(float larg, float haut);
     void initAccueil(float larg, float haut);
     void initPause(float larg, float haut);
@@ -87,29 +96,37 @@ private:
     void validerOptionPause();
     void validerOptionGameOver();
 
-    MenuState m_etat { MenuState::EcranTitre };
+    MenuState       m_etat { MenuState::EcranTitre };
     const sf::Font* m_police { nullptr };
-    int m_index { 0 };
-    int m_indexPause { 0 };
-    int m_indexGameOver { 0 };
-    bool m_lancerJeu { false };
+    int             m_index { 0 };
+    int             m_indexPause { 0 };
+    int             m_indexGameOver { 0 };
+    bool            m_lancerJeu { false };
 
-    // Flags pause
+    // Flags du menu pause
     bool m_reprise          { false };
     bool m_recommencer      { false };
     bool m_quitterVersMenu  { false };
 
-    // Flags game over
+    // Flags de l'écran Game Over
     bool m_recommencerGameOver       { false };
     bool m_quitterVersMenuGameOver   { false };
 
     float m_larg { 0.f };
     float m_haut { 0.f };
 
+    // --- Éléments du Splash Screen et du Menu ---
     std::vector<sf::Text>    m_lettreTitre;
     std::optional<sf::Text>  m_textConsigne;
     std::optional<sf::Text>  m_titreMenu;
 
+    // --- Éléments Décoratifs du Titre ---
+    std::optional<sf::Text>          m_sousTitreAuteurs; // Noms des auteurs "Emmanuel & Martinaud"
+    std::vector<sf::Text>            m_notesDeco;        // Symboles de notes de musique décoratives (♪ ♫)
+    std::vector<sf::RectangleShape>  m_lignesDeco;       // Portées / lignes de décoration
+    std::vector<sf::RectangleShape>  m_blocsDeco;        // Mini tetraminos de décoration sous le titre
+
+    // Boutons
     std::vector<BoutonUI>    m_btnsAccueil;
     std::vector<BoutonUI>    m_btnsPause;
     std::optional<sf::Text>  m_titrePause;

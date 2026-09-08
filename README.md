@@ -625,33 +625,31 @@ Mise a jour du fichier de projet `.cbp` pour integrer les unites `include/Piece.
 
 ---
 
-## Modifications du 08/09/2026 — Rotation, Ghost Piece, Score/Combos, Écran Game Over & Palette Hyper-Saturée
+## Modifications du 08/09/2026 — Écran Titre Décoré, Écran Game Over & Palette Hyper-Saturée
 
 ### Contexte
 
-Implémentation complète des fonctionnalités d extension selon les demandes :
-1. Écran Game Over dédié ("GAME OVER", "Voulez-vous recommencer ?", boutons `RECOMMENCER` et `MENU PRINCIPAL`).
-2. Option explicite `MENU PRINCIPAL` dans le menu Pause.
-3. Palette de couleurs Genshin Impact **hyper-saturée et éclatante** (non pastel).
-4. Visibilité accrue de la Ghost Piece (ombre semi-transparente renforcée à 120/255 d opacité et contour à 230/255).
-5. Rotation 360° avec Wall Kicks, Hard Drop (`Espace`), scores, combos et panneau latéral UI.
+Implémentation des améliorations visuelles et structurelles sur l écran titre et les overlays de fin de partie :
+1. **Écran Titre Décoré (Splash Screen)** : Inspiré de la maquette du projet (logo TETRIS multicolore, sous-titre "Emmanuel & Martinaud", mini tetraminos centrés, portées de lignes décoratives et symboles musicaux).
+2. **Écran Game Over Dédié (`EtatJeu::GameOver`)** : Titre "GAME OVER", question "Voulez-vous recommencer ?" et boutons interactifs `RECOMMENCER` et `MENU PRINCIPAL`.
+3. **Palette Genshin Impact Hyper-Saturée (`Palette.h`)** : Couleurs très éclatantes et vives (non pastels).
+4. **Ghost Piece Renforcée (`Piece.cpp`)** : Remplissage alpha = 120, bordure alpha = 230, épaisseur -2px pour une lisibilité optimale sur la grille.
+5. **Commentaires Pédagogiques** : Explications détaillées au-dessus de chaque bloc complexe pour le professeur.
 
 ---
 
-### Palette & Graphismes (`Palette.h` / `Piece.cpp`)
+### Décorations de l Écran Titre (`Menu.h` / `Menu.cpp`)
 
-- **Couleurs Hyper-Saturées** : Teintes officielles des Archons Genshin Impact réajustées pour être très vives et contrastées.
-- **Ghost Piece Renforcée** : Ombre d atterrissage bien visible avec un remplissage alpha = 120, une bordure alpha = 230 et une épaisseur de -2px.
+- **`m_sousTitreAuteurs`** : Affiche les noms des créateurs ("Emmanuel & Martinaud") sous le titre principal.
+- **`m_blocsDeco`** : Dessine les mini-pièces Tetris d illustration au centre de l écran titre (barre I turquoise et carré O doré).
+- **`m_notesDeco` & `m_lignesDeco`** : Ajoute des portées horizontales et des symboles musicaux décoratifs autour du titre.
 
 ---
 
-### Écran Game Over & Pause (`Menu.h` / `Menu.cpp` / `jeu.cpp`)
+### Écran Game Over & Menu Pause (`Menu.h` / `Menu.cpp` / `jeu.cpp`)
 
-- **Écran Game Over (`EtatJeu::GameOver`)** :
-  - Overlay sombre par-dessus la grille.
-  - Titre "GAME OVER" (Rouge Pyro incandescent) et question "Voulez-vous recommencer ?".
-  - Boutons interactifs : `RECOMMENCER` (relance une partie) et `MENU PRINCIPAL` (retour au menu d accueil).
-- **Menu Pause** : Intègre l option claire `MENU PRINCIPAL` pour revenir facilement à l accueil.
+- **Écran Game Over** : Transite automatiquement en cas de défaite, proposant au joueur de rejouer ou de retourner à l accueil.
+- **Menu Pause** : Bouton explicite `MENU PRINCIPAL` réorientant vers le menu d accueil.
 
 ---
 
@@ -659,8 +657,8 @@ Implémentation complète des fonctionnalités d extension selon les demandes :
 
 - **Rotation & Wall Kicks** : 4 orientations par pièce (0°, 90°, 180°, 270°) avec décalage mural automatique.
 - **Hard Drop** : Touche `Espace` (+2 pts / case).
-- **Scores, Combos & Meilleur Score** : Enregistrement automatique dans `assets/bestscore.txt`.
-- **Panneau Latéral** : Displays `BEST SCORE`, `CURRENT SCORE`, `COMBO`, `NEXT PIECE` et `CONTROLS`.
+- **Scores, Combos & Meilleur Score** : Persistence automatique dans `assets/bestscore.txt`.
+- **Panneau Latéral** : Zone d aperçu `NEXT PIECE`, `BEST SCORE`, `CURRENT SCORE`, `COMBO` et `CONTROLS`.
 
 ---
 
